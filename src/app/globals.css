@@ -1,26 +1,62 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Doto:wght@100..900&family=Space+Grotesk:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
 
+/* Dark mode (default) */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --black:          #000000;
+  --surface:        #111111;
+  --surface-raised: #1A1A1A;
+  --border:         #222222;
+  --border-visible: #333333;
+  --text-disabled:  #666666;
+  --text-secondary: #999999;
+  --text-primary:   #E8E8E8;
+  --text-display:   #FFFFFF;
+  --accent:         #D71921;
+  --accent-subtle:  rgba(215, 25, 33, 0.15);
+  --success:        #4A9E5C;
+  --warning:        #D4A843;
+  --radius-card:    12px;
+  --radius-btn:     999px;
+  --radius-tag:     4px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Light mode */
+[data-theme="light"] {
+  --black:          #F5F5F5;
+  --surface:        #FFFFFF;
+  --surface-raised: #F0F0F0;
+  --border:         #E8E8E8;
+  --border-visible: #CCCCCC;
+  --text-disabled:  #999999;
+  --text-secondary: #666666;
+  --text-primary:   #1A1A1A;
+  --text-display:   #000000;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+* { box-sizing: border-box; margin: 0; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--black);
+  color: var(--text-primary);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography utilities */
+.font-display  { font-family: 'Doto', monospace; }
+.font-mono     { font-family: 'Space Mono', monospace; }
+.font-ui       { font-family: 'Space Grotesk', system-ui, sans-serif; }
+
+.label {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.dot-grid {
+  background-image: radial-gradient(circle, var(--border-visible) 1px, transparent 1px);
+  background-size: 16px 16px;
 }
