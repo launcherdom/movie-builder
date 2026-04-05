@@ -17,18 +17,18 @@ export interface VideoModelConfig {
 
 export const IMAGE_MODELS: Record<QualityTier, ImageModelConfig> = {
   draft: {
-    endpoint: "fal-ai/nano-banana-pro",
-    name: "Nano Banana Pro",
+    endpoint: "fal-ai/nano-banana-2",
+    name: "Nano Banana 2",
     costPerImage: 0.01,
   },
   standard: {
-    endpoint: "fal-ai/flux-2",
-    name: "Flux 2",
+    endpoint: "fal-ai/flux-pro",
+    name: "Flux Pro",
     costPerImage: 0.04,
   },
   premium: {
-    endpoint: "fal-ai/flux-2-pro",
-    name: "Flux 2 Pro",
+    endpoint: "fal-ai/flux-pro/v1.1-ultra",
+    name: "Flux Pro Ultra",
     costPerImage: 0.06,
   },
 };
