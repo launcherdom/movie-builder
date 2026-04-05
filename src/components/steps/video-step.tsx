@@ -168,6 +168,10 @@ function ShotVideoCard({ shot, shotIndex }: { shot: Shot; shotIndex: number }) {
 
 export function VideoStep() {
   const { story, setGenerating, qualityTier } = useProjectStore();
+  const projectId = useProjectStore((s) => s.id);
+  const [assembling, setAssembling] = useState(false);
+  const [assembledUrl, setAssembledUrl] = useState<string | null>(null);
+  const [assembleError, setAssembleError] = useState<string | null>(null);
 
   if (!story) {
     return (
@@ -179,6 +183,28 @@ export function VideoStep() {
 
   const allShots = story.scenes.flatMap((sc) => sc.shots);
   const doneClips = allShots.filter((sh) => sh.videoStatus === "done").length;
+  const readyClips = allShots.filter((sh) => sh.videoStatus === "done" && sh.videoClip);
+
+  const handleAssemble = async () => {
+    setAssembling(true);
+    setAssembleError(null);
+    setAssembledUrl(null);
+    try {
+      const clips = readyClips.map((sh) => ({ url: sh.videoClip!.url, duration: sh.duration }));
+      const res = await fetch("/api/video/assemble", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clips, projectId }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { url } = await res.json();
+      setAssembledUrl(url);
+    } catch (e) {
+      setAssembleError(e instanceof Error ? e.message : "Assembly failed");
+    } finally {
+      setAssembling(false);
+    }
+  };
 
   const handleGenerateAll = async () => {
     setGenerating(true, { current: 0, total: allShots.length });
@@ -258,6 +284,71 @@ export function VideoStep() {
           ))}
         </div>
       ))}
+
+      {/* Assembly section */}
+      {readyClips.length > 0 && (
+        <div style={{ marginTop: 48, borderTop: "1px solid var(--border-visible)", paddingTop: 32 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <div>
+              <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 13, color: "var(--text-display)", letterSpacing: "0.08em" }}>
+                ASSEMBLE & EXPORT
+              </p>
+              <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
+                {readyClips.length} CLIPS → CONCAT → MP4
+              </p>
+            </div>
+            <button
+              onClick={handleAssemble}
+              disabled={assembling}
+              style={{
+                fontFamily: "var(--font-space-mono), monospace",
+                fontSize: 12,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                background: assembling ? "var(--border)" : "var(--text-display)",
+                color: assembling ? "var(--text-disabled)" : "var(--black)",
+                border: "none",
+                borderRadius: "var(--radius-btn)",
+                padding: "12px 32px",
+                cursor: assembling ? "not-allowed" : "pointer",
+              }}
+            >
+              {assembling ? "[ASSEMBLING...]" : "▶ ASSEMBLE"}
+            </button>
+          </div>
+
+          {assembleError && (
+            <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--accent)" }}>
+              [ERROR: {assembleError}]
+            </p>
+          )}
+
+          {assembledUrl && (
+            <div style={{ marginTop: 16 }}>
+              <video src={assembledUrl} controls style={{ width: "100%", borderRadius: "var(--radius-card)", marginBottom: 16 }} />
+              <a
+                href={assembledUrl}
+                download="movie.mp4"
+                style={{
+                  display: "inline-block",
+                  fontFamily: "var(--font-space-mono), monospace",
+                  fontSize: 12,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  background: "transparent",
+                  border: "1px solid var(--border-visible)",
+                  borderRadius: "var(--radius-btn)",
+                  color: "var(--text-primary)",
+                  padding: "10px 28px",
+                  textDecoration: "none",
+                }}
+              >
+                ↓ DOWNLOAD MP4
+              </a>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
