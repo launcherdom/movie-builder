@@ -27,9 +27,10 @@ export async function POST(request: NextRequest) {
 
     const systemPrompt = buildStorySystemPrompt(genre, tone, targetDuration, aspectRatio, visualStyle);
 
-    const response = await client.messages.create({
+    const response = await client.beta.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 8192,
+      max_tokens: 16000,
+      betas: ["output-128k-2025-02-19"],
       system: systemPrompt,
       tools: [SCREENPLAY_TOOL],
       tool_choice: { type: "tool", name: "create_screenplay" },
