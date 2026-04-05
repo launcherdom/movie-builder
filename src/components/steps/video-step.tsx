@@ -59,6 +59,7 @@ function ShotVideoCard({ shot, shotIndex }: { shot: Shot; shotIndex: number }) {
     setShotVideoStatus(shot.id, "generating");
 
     try {
+      // Submit job
       const res = await fetch("/api/video/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -71,8 +72,23 @@ function ShotVideoCard({ shot, shotIndex }: { shot: Shot; shotIndex: number }) {
         }),
       });
       if (!res.ok) throw new Error(await res.text());
-      const { video } = await res.json();
-      setShotVideo(shot.id, video);
+      const { requestId, endpoint } = await res.json();
+
+      // Poll until done
+      while (true) {
+        await new Promise((r) => setTimeout(r, 4000));
+        const poll = await fetch(`/api/video/status?requestId=${requestId}&endpoint=${encodeURIComponent(endpoint)}`);
+        if (!poll.ok) throw new Error(await poll.text());
+        const data = await poll.json();
+        if (data.status === "COMPLETED") {
+          setShotVideo(shot.id, data.video);
+          break;
+        }
+        if (data.status === "error") {
+          throw new Error(data.error ?? "Generation failed");
+        }
+        // IN_QUEUE or IN_PROGRESS — keep polling
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Video generation failed");
       setShotVideoStatus(shot.id, "error");
@@ -212,6 +228,8 @@ export function VideoStep() {
       if (shot.videoStatus === "done" || !shot.storyboardPanel) continue;
       try {
         const json = shot.videoPromptJson ?? buildDefaultVideoPromptJson(shot);
+        useProjectStore.getState().setShotVideoStatus(shot.id, "generating");
+
         const res = await fetch("/api/video/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -223,12 +241,23 @@ export function VideoStep() {
             qualityTier,
           }),
         });
-        if (res.ok) {
-          const { video } = await res.json();
-          useProjectStore.getState().setShotVideo(shot.id, video);
+        if (!res.ok) continue;
+        const { requestId, endpoint } = await res.json();
+
+        // Poll until done
+        while (true) {
+          await new Promise((r) => setTimeout(r, 4000));
+          const poll = await fetch(`/api/video/status?requestId=${requestId}&endpoint=${encodeURIComponent(endpoint)}`);
+          if (!poll.ok) break;
+          const data = await poll.json();
+          if (data.status === "COMPLETED") {
+            useProjectStore.getState().setShotVideo(shot.id, data.video);
+            break;
+          }
+          if (data.status === "error") break;
         }
       } catch {
-        // continue
+        // continue with next shot
       }
     }
     setGenerating(false);

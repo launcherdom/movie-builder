@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const model = getVideoModel(qualityTier);
     const prompt = JSON.stringify(videoPromptJson);
 
-    const result = await fal.subscribe(model.endpoint, {
+    const { request_id } = await fal.queue.submit(model.endpoint, {
       input: {
         prompt,
         image_url: imageUrl,
@@ -31,25 +31,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const data = result.data as {
-      video?: { url: string; width: number; height: number; duration: number };
-    };
-
-    if (!data.video) {
-      return Response.json({ error: "No video returned from fal.ai" }, { status: 500 });
-    }
-
-    return Response.json({
-      shotId,
-      video: {
-        url: data.video.url,
-        duration: data.video.duration,
-        width: data.video.width,
-        height: data.video.height,
-        falRequestId: result.requestId,
-        hasAudio: model.supportsAudio,
-      },
-    });
+    return Response.json({ shotId, requestId: request_id, endpoint: model.endpoint });
   } catch (error) {
     console.error("Video generation error:", error);
     return Response.json(
