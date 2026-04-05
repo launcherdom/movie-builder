@@ -84,10 +84,13 @@ export interface Shot {
   cameraDirection?: string;
   duration: number;
   storyboardPanel?: GeneratedImage;
+  keyframeImage?: GeneratedImage;
   videoClip?: GeneratedVideo;
   imageStatus: GenerationStatus;
+  keyframeStatus: GenerationStatus;
   videoStatus: GenerationStatus;
   imagePrompt?: string;
+  keyframePrompt?: string;
   videoPromptJson?: VideoPromptJson;
 }
 
@@ -161,6 +164,7 @@ export function isValidShot(value: unknown): value is Shot {
     typeof s.description === "string" &&
     typeof s.duration === "number" &&
     typeof s.imageStatus === "string" &&
-    typeof s.videoStatus === "string"
+    typeof s.videoStatus === "string" &&
+    typeof s.keyframeStatus === "string"
   );
 }

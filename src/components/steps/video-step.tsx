@@ -41,32 +41,77 @@ function buildDefaultVideoPromptJson(shot: Shot): VideoPromptJson {
   };
 }
 
-function ShotVideoCard({ shot, shotIndex }: { shot: Shot; shotIndex: number }) {
-  const { setShotVideo, setShotVideoStatus, setShotVideoPromptJson, qualityTier, aspectRatio } = useProjectStore();
+import type { GeneratedVideo } from "@/types/movie";
+
+async function pollVideo(requestId: string, endpoint: string): Promise<GeneratedVideo> {
+  while (true) {
+    await new Promise((r) => setTimeout(r, 4000));
+    const poll = await fetch(`/api/video/status?requestId=${requestId}&endpoint=${encodeURIComponent(endpoint)}`);
+    if (!poll.ok) throw new Error(await poll.text());
+    const data = await poll.json();
+    if (data.status === "COMPLETED") return data.video as GeneratedVideo;
+    if (data.status === "error") throw new Error(data.error ?? "Generation failed");
+  }
+}
+
+function ShotVideoCard({ shot, shotIndex, sceneDescription }: { shot: Shot; shotIndex: number; sceneDescription: string }) {
+  const store = useProjectStore();
+  const { setShotVideo, setShotVideoStatus, setShotVideoPromptJson, setShotKeyframe, setShotKeyframeStatus, qualityTier, aspectRatio, visualStyle, story } = store;
+  const { t } = useLangStore();
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const json = shot.videoPromptJson ?? buildDefaultVideoPromptJson(shot);
 
-  const handleGenerate = async () => {
+  const handleGenerateKeyframe = async () => {
     if (!shot.storyboardPanel) {
-      setError("No storyboard panel — generate panel first.");
+      setError(t.video.noPanel);
       return;
     }
-    if (!shot.videoPromptJson) {
-      setShotVideoPromptJson(shot.id, json);
+    setError(null);
+    setShotKeyframeStatus(shot.id, "generating");
+    try {
+      const res = await fetch("/api/keyframe/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shots: [shot],
+          sceneDescription,
+          characters: story?.characters ?? [],
+          qualityTier,
+          visualStyle,
+          aspectRatio,
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { results } = await res.json();
+      const r = results?.[0];
+      if (r?.keyframe) {
+        setShotKeyframe(shot.id, r.keyframe, r.prompt);
+      } else {
+        throw new Error("No keyframe returned");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Keyframe generation failed");
+      setShotKeyframeStatus(shot.id, "error");
     }
+  };
+
+  const handleGenerate = async () => {
+    if (!shot.keyframeImage) {
+      setError(t.video.noKeyframe);
+      return;
+    }
+    if (!shot.videoPromptJson) setShotVideoPromptJson(shot.id, json);
     setError(null);
     setShotVideoStatus(shot.id, "generating");
-
     try {
-      // Submit job
       const res = await fetch("/api/video/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shotId: shot.id,
-          imageUrl: shot.storyboardPanel.url,
+          imageUrl: shot.keyframeImage.url,
           videoPromptJson: shot.videoPromptJson ?? json,
           duration: shot.duration,
           qualityTier,
@@ -75,56 +120,35 @@ function ShotVideoCard({ shot, shotIndex }: { shot: Shot; shotIndex: number }) {
       });
       if (!res.ok) throw new Error(await res.text());
       const { requestId, endpoint } = await res.json();
-
-      // Poll until done
-      while (true) {
-        await new Promise((r) => setTimeout(r, 4000));
-        const poll = await fetch(`/api/video/status?requestId=${requestId}&endpoint=${encodeURIComponent(endpoint)}`);
-        if (!poll.ok) throw new Error(await poll.text());
-        const data = await poll.json();
-        if (data.status === "COMPLETED") {
-          setShotVideo(shot.id, data.video);
-          break;
-        }
-        if (data.status === "error") {
-          throw new Error(data.error ?? "Generation failed");
-        }
-        // IN_QUEUE or IN_PROGRESS — keep polling
-      }
+      const video = await pollVideo(requestId, endpoint);
+      setShotVideo(shot.id, video);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Video generation failed");
+      setError(e instanceof Error ? e.message : t.video.errorFail);
       setShotVideoStatus(shot.id, "error");
     }
   };
 
+  const isGeneratingKeyframe = shot.keyframeStatus === "generating";
+  const isGeneratingVideo = shot.videoStatus === "generating";
+
   return (
     <div style={{ marginBottom: 24, border: "1px solid var(--border)", borderRadius: "var(--radius-card)", overflow: "hidden", background: "var(--surface)" }}>
+      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 12, color: "var(--text-secondary)" }}>
             SHOT {String(shotIndex + 1).padStart(2, "0")}
           </span>
-          <span style={{
-            fontFamily: "var(--font-space-mono), monospace",
-            fontSize: 10,
-            border: "1px solid var(--border-visible)",
-            borderRadius: 4,
-            padding: "1px 6px",
-            color: "var(--text-primary)",
-          }}>
+          <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, border: "1px solid var(--border-visible)", borderRadius: 4, padding: "1px 6px", color: "var(--text-primary)" }}>
             {shot.shotType}
           </span>
           <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-disabled)" }}>
             {shot.duration}S
           </span>
         </div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {shot.videoStatus !== "idle" && (
-            <span style={{
-              fontFamily: "var(--font-space-mono), monospace",
-              fontSize: 11,
-              color: shot.videoStatus === "done" ? "var(--success)" : shot.videoStatus === "error" ? "var(--accent)" : "var(--text-secondary)",
-            }}>
+            <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: shot.videoStatus === "done" ? "var(--success)" : shot.videoStatus === "error" ? "var(--accent)" : "var(--text-secondary)" }}>
               [{shot.videoStatus.toUpperCase()}]
             </span>
           )}
@@ -132,38 +156,69 @@ function ShotVideoCard({ shot, shotIndex }: { shot: Shot; shotIndex: number }) {
             onClick={() => setExpanded((p) => !p)}
             style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontFamily: "var(--font-space-mono), monospace", fontSize: 11 }}
           >
-            {expanded ? "▲ COLLAPSE" : "▼ EXPAND"}
+            {expanded ? "▲" : "▼"}
           </button>
+          {/* Keyframe button */}
           <button
-            onClick={handleGenerate}
-            disabled={shot.videoStatus === "generating"}
+            onClick={handleGenerateKeyframe}
+            disabled={isGeneratingKeyframe || isGeneratingVideo}
             style={{
               fontFamily: "var(--font-space-mono), monospace",
               fontSize: 11,
               letterSpacing: "0.06em",
-              textTransform: "uppercase",
+              background: "transparent",
+              border: `1px solid ${shot.keyframeImage ? "var(--success)" : "var(--border-visible)"}`,
+              borderRadius: "var(--radius-btn)",
+              color: isGeneratingKeyframe ? "var(--text-disabled)" : shot.keyframeImage ? "var(--success)" : "var(--text-primary)",
+              padding: "6px 14px",
+              cursor: (isGeneratingKeyframe || isGeneratingVideo) ? "not-allowed" : "pointer",
+            }}
+          >
+            {isGeneratingKeyframe ? t.video.generatingKeyframe : t.video.generateKeyframe}
+          </button>
+          {/* Video button */}
+          <button
+            onClick={handleGenerate}
+            disabled={isGeneratingVideo || isGeneratingKeyframe}
+            style={{
+              fontFamily: "var(--font-space-mono), monospace",
+              fontSize: 11,
+              letterSpacing: "0.06em",
               background: "transparent",
               border: "1px solid var(--border-visible)",
               borderRadius: "var(--radius-btn)",
-              color: shot.videoStatus === "generating" ? "var(--text-disabled)" : "var(--text-primary)",
+              color: isGeneratingVideo ? "var(--text-disabled)" : "var(--text-primary)",
               padding: "6px 16px",
-              cursor: shot.videoStatus === "generating" ? "not-allowed" : "pointer",
+              cursor: (isGeneratingVideo || isGeneratingKeyframe) ? "not-allowed" : "pointer",
             }}
           >
-            {shot.videoStatus === "generating" ? "[GENERATING...]" : "▶ GENERATE"}
+            {isGeneratingVideo ? "[GENERATING...]" : "▶ GENERATE"}
           </button>
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 0 }}>
+      {/* Image strip: storyboard → keyframe → video */}
+      <div style={{ display: "flex" }}>
         {shot.storyboardPanel && (
-          <div style={{ width: 160, flexShrink: 0, padding: 16, borderRight: "1px solid var(--border)" }}>
+          <div style={{ width: 140, flexShrink: 0, padding: 12, borderRight: "1px solid var(--border)" }}>
+            <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 9, color: "var(--text-disabled)", marginBottom: 6, letterSpacing: "0.08em" }}>BOARD</p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={shot.storyboardPanel.url} alt="panel" style={{ width: "100%", borderRadius: 4 }} />
+            <img src={shot.storyboardPanel.url} alt="storyboard" style={{ width: "100%", borderRadius: 4, opacity: 0.7 }} />
+          </div>
+        )}
+        {(shot.keyframeImage || shot.keyframeStatus === "generating") && (
+          <div style={{ width: 160, flexShrink: 0, padding: 12, borderRight: "1px solid var(--border)" }}>
+            <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 9, color: "var(--text-secondary)", marginBottom: 6, letterSpacing: "0.08em" }}>{t.video.keyframe}</p>
+            {shot.keyframeImage
+              ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={shot.keyframeImage.url} alt="keyframe" style={{ width: "100%", borderRadius: 4 }} />
+              : <div style={{ width: "100%", aspectRatio: "9/16", background: "var(--border)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 9, color: "var(--text-disabled)" }}>...</span>
+                </div>
+            }
           </div>
         )}
         {shot.videoClip && (
-          <div style={{ flex: 1, padding: 16 }}>
+          <div style={{ flex: 1, padding: 12 }}>
             <video src={shot.videoClip.url} controls style={{ width: "100%", borderRadius: 4 }} />
           </div>
         )}
@@ -185,7 +240,7 @@ function ShotVideoCard({ shot, shotIndex }: { shot: Shot; shotIndex: number }) {
 }
 
 export function VideoStep() {
-  const { story, setGenerating, qualityTier, aspectRatio } = useProjectStore();
+  const { story, setGenerating, qualityTier, aspectRatio, visualStyle } = useProjectStore();
   const { t } = useLangStore();
   const [assembling, setAssembling] = useState(false);
   const [assembledUrl, setAssembledUrl] = useState<string | null>(null);
@@ -210,29 +265,22 @@ export function VideoStep() {
     try {
       const { FFmpeg } = await import("@ffmpeg/ffmpeg");
       const { fetchFile, toBlobURL } = await import("@ffmpeg/util");
-
       const ffmpeg = new FFmpeg();
       const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
       await ffmpeg.load({
         coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
         wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
       });
-
       const clipUrls = readyClips.map((sh) => sh.videoClip!.url);
       for (let i = 0; i < clipUrls.length; i++) {
         await ffmpeg.writeFile(`clip${i}.mp4`, await fetchFile(clipUrls[i]));
       }
-
-      const concatList = clipUrls.map((_, i) => `file 'clip${i}.mp4'`).join("\n");
-      await ffmpeg.writeFile("list.txt", concatList);
-
+      await ffmpeg.writeFile("list.txt", clipUrls.map((_, i) => `file 'clip${i}.mp4'`).join("\n"));
       await ffmpeg.exec(["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "output.mp4"]);
-
       const data = await ffmpeg.readFile("output.mp4");
-      const blob = new Blob([new Uint8Array(data as Uint8Array)], { type: "video/mp4" });
-      setAssembledUrl(URL.createObjectURL(blob));
+      setAssembledUrl(URL.createObjectURL(new Blob([new Uint8Array(data as Uint8Array)], { type: "video/mp4" })));
     } catch (e) {
-      setAssembleError(e instanceof Error ? e.message : "Assembly failed");
+      setAssembleError(e instanceof Error ? e.message : t.video.assemblyFail);
     } finally {
       setAssembling(false);
     }
@@ -240,41 +288,65 @@ export function VideoStep() {
 
   const handleGenerateAll = async () => {
     setGenerating(true, { current: 0, total: allShots.length });
-    for (const shot of allShots) {
-      if (shot.videoStatus === "done" || !shot.storyboardPanel) continue;
-      try {
-        const json = shot.videoPromptJson ?? buildDefaultVideoPromptJson(shot);
-        useProjectStore.getState().setShotVideoStatus(shot.id, "generating");
+    for (const scene of story.scenes) {
+      for (const shot of scene.shots) {
+        if (shot.videoStatus === "done" || !shot.storyboardPanel) continue;
+        try {
+          const store = useProjectStore.getState();
 
-        const res = await fetch("/api/video/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            shotId: shot.id,
-            imageUrl: shot.storyboardPanel.url,
-            videoPromptJson: json,
-            duration: shot.duration,
-            qualityTier,
-            aspectRatio,
-          }),
-        });
-        if (!res.ok) continue;
-        const { requestId, endpoint } = await res.json();
-
-        // Poll until done
-        while (true) {
-          await new Promise((r) => setTimeout(r, 4000));
-          const poll = await fetch(`/api/video/status?requestId=${requestId}&endpoint=${encodeURIComponent(endpoint)}`);
-          if (!poll.ok) break;
-          const data = await poll.json();
-          if (data.status === "COMPLETED") {
-            useProjectStore.getState().setShotVideo(shot.id, data.video);
-            break;
+          // Generate keyframe first if missing
+          if (!shot.keyframeImage) {
+            store.setShotKeyframeStatus(shot.id, "generating");
+            const kRes = await fetch("/api/keyframe/generate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                shots: [shot],
+                sceneDescription: scene.description,
+                characters: story.characters,
+                qualityTier,
+                visualStyle,
+                aspectRatio,
+              }),
+            });
+            if (!kRes.ok) continue;
+            const { results } = await kRes.json();
+            const kr = results?.[0];
+            if (!kr?.keyframe) continue;
+            store.setShotKeyframe(shot.id, kr.keyframe, kr.prompt);
+            // Refresh shot reference
+            const updatedShot = useProjectStore.getState().story?.scenes
+              .flatMap((sc) => sc.shots).find((sh) => sh.id === shot.id);
+            if (!updatedShot?.keyframeImage) continue;
           }
-          if (data.status === "error") break;
+
+          // Get fresh shot with keyframe
+          const freshShot = useProjectStore.getState().story?.scenes
+            .flatMap((sc) => sc.shots).find((sh) => sh.id === shot.id);
+          if (!freshShot?.keyframeImage) continue;
+
+          const json = freshShot.videoPromptJson ?? buildDefaultVideoPromptJson(freshShot);
+          store.setShotVideoStatus(shot.id, "generating");
+
+          const res = await fetch("/api/video/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              shotId: shot.id,
+              imageUrl: freshShot.keyframeImage.url,
+              videoPromptJson: json,
+              duration: shot.duration,
+              qualityTier,
+              aspectRatio,
+            }),
+          });
+          if (!res.ok) continue;
+          const { requestId, endpoint } = await res.json();
+          const video = await pollVideo(requestId, endpoint);
+          store.setShotVideo(shot.id, video);
+        } catch {
+          // continue with next shot
         }
-      } catch {
-        // continue with next shot
       }
     }
     setGenerating(false);
@@ -326,7 +398,7 @@ export function VideoStep() {
             SCENE {String(si + 1).padStart(2, "0")} — {scene.heading}
           </p>
           {scene.shots.map((shot, shi) => (
-            <ShotVideoCard key={shot.id} shot={shot} shotIndex={shi} />
+            <ShotVideoCard key={shot.id} shot={shot} shotIndex={shi} sceneDescription={scene.description} />
           ))}
         </div>
       ))}

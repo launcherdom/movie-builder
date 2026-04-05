@@ -210,6 +210,7 @@ export function parseStoryResponse(response: ClaudeResponse): Story {
       cameraDirection: sh.cameraDirection as string | undefined,
       duration: sh.duration as number,
       imageStatus: "idle" as const,
+      keyframeStatus: "idle" as const,
       videoStatus: "idle" as const,
     })),
   }));

@@ -24,6 +24,8 @@ interface ProjectActions {
   updateCharacterSheet: (id: string, sheet: GeneratedImage) => void;
   setShotImageStatus: (shotId: string, status: GenerationStatus) => void;
   setShotPanel: (shotId: string, panel: GeneratedImage, prompt: string) => void;
+  setShotKeyframeStatus: (shotId: string, status: GenerationStatus) => void;
+  setShotKeyframe: (shotId: string, image: GeneratedImage, prompt: string) => void;
   setShotVideoStatus: (shotId: string, status: GenerationStatus) => void;
   setShotVideo: (shotId: string, video: GeneratedVideo) => void;
   setShotVideoPromptJson: (shotId: string, json: VideoPromptJson) => void;
@@ -115,6 +117,16 @@ function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectSto
         storyboardPanel: panel,
         imageStatus: "done",
         imagePrompt: prompt,
+      })),
+
+    setShotKeyframeStatus: (shotId, status) =>
+      set((state) => updateShot(state, shotId, { keyframeStatus: status })),
+
+    setShotKeyframe: (shotId, image, prompt) =>
+      set((state) => updateShot(state, shotId, {
+        keyframeImage: image,
+        keyframeStatus: "done",
+        keyframePrompt: prompt,
       })),
 
     setShotVideoStatus: (shotId, status) =>

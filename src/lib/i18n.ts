@@ -73,6 +73,10 @@ export const translations = {
       noPanel: "No storyboard panel — generate panel first.",
       errorFail: "Video generation failed",
       assemblyFail: "Assembly failed",
+      keyframe: "KEYFRAME",
+      generateKeyframe: "▶ KEYFRAME",
+      generatingKeyframe: "[KEYFRAME...]",
+      noKeyframe: "No keyframe — generate keyframe first.",
     },
 
     // Theme toggle
@@ -152,6 +156,10 @@ export const translations = {
       noPanel: "스토리보드 패널 없음 — 먼저 패널을 생성하세요.",
       errorFail: "영상 생성 실패",
       assemblyFail: "조립 실패",
+      keyframe: "키프레임",
+      generateKeyframe: "▶ 키프레임",
+      generatingKeyframe: "[키프레임...]",
+      noKeyframe: "키프레임 없음 — 먼저 키프레임을 생성하세요.",
     },
 
     // Theme toggle
