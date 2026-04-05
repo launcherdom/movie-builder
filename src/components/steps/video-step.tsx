@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
+import { useLangStore } from "@/stores/lang-store";
 import { VideoPromptEditor } from "@/components/video/video-prompt-editor";
 import type { Shot, VideoPromptJson } from "@/types/movie";
 
@@ -184,6 +185,7 @@ function ShotVideoCard({ shot, shotIndex }: { shot: Shot; shotIndex: number }) {
 
 export function VideoStep() {
   const { story, setGenerating, qualityTier } = useProjectStore();
+  const { t } = useLangStore();
   const [assembling, setAssembling] = useState(false);
   const [assembledUrl, setAssembledUrl] = useState<string | null>(null);
   const [assembleError, setAssembleError] = useState<string | null>(null);
@@ -191,7 +193,7 @@ export function VideoStep() {
   if (!story) {
     return (
       <p style={{ fontFamily: "var(--font-space-mono), monospace", color: "var(--text-secondary)", fontSize: 13 }}>
-        [NO STORY — return to CONCEPT]
+        {t.video.noStory}
       </p>
     );
   }
@@ -281,11 +283,11 @@ export function VideoStep() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 32 }}>
         <div>
           <h1 className="font-display" style={{ fontSize: 36, color: "var(--text-display)", marginBottom: 4 }}>
-            05 — VIDEO
+            {t.video.heading}
           </h1>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
             <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-secondary)", letterSpacing: "0.08em" }}>
-              CLIPS
+              {t.video.clips}
             </span>
             <div style={{ display: "flex", gap: 2 }}>
               {Array.from({ length: Math.min(allShots.length, 24) }).map((_, i) => (
@@ -312,7 +314,7 @@ export function VideoStep() {
             cursor: "pointer",
           }}
         >
-          GENERATE ALL
+          {t.video.generateAll}
         </button>
       </div>
 
@@ -333,7 +335,7 @@ export function VideoStep() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <div>
               <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 13, color: "var(--text-display)", letterSpacing: "0.08em" }}>
-                ASSEMBLE & EXPORT
+                {t.video.assemble}
               </p>
               <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
                 {readyClips.length} CLIPS → CONCAT → MP4
@@ -355,7 +357,7 @@ export function VideoStep() {
                 cursor: assembling ? "not-allowed" : "pointer",
               }}
             >
-              {assembling ? "[ASSEMBLING...]" : "▶ ASSEMBLE"}
+              {assembling ? t.video.assembling : t.video.assembleBtn}
             </button>
           </div>
 
@@ -385,7 +387,7 @@ export function VideoStep() {
                   textDecoration: "none",
                 }}
               >
-                ↓ DOWNLOAD MP4
+                {t.video.download}
               </a>
             </div>
           )}

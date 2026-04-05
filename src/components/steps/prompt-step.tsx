@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
+import { useLangStore } from "@/stores/lang-store";
 import { useRouter } from "next/navigation";
 import type { Genre, Tone, AspectRatio, VisualStyle } from "@/types/movie";
 
@@ -33,6 +34,7 @@ const underlineInput: React.CSSProperties = {
 
 export function PromptStep() {
   const { initProject } = useProjectStore();
+  const { t } = useLangStore();
   const router = useRouter();
 
   const [concept, setConcept] = useState("");
@@ -46,7 +48,7 @@ export function PromptStep() {
 
   const handleGenerate = async () => {
     if (!concept.trim()) {
-      setError("Please enter your story concept.");
+      setError(t.prompt.errorEmpty);
       return;
     }
     setError(null);
@@ -66,7 +68,7 @@ export function PromptStep() {
       const projectId = useProjectStore.getState().id;
       router.push(`/project/${projectId}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Story generation failed.");
+      setError(e instanceof Error ? e.message : t.prompt.errorFail);
       setGenerating(false);
     }
   };
@@ -74,15 +76,15 @@ export function PromptStep() {
   return (
     <div style={{ maxWidth: 600 }}>
       <h1 className="font-display" style={{ fontSize: 36, color: "var(--text-display)", marginBottom: 8 }}>
-        01 — CONCEPT
+        {t.prompt.heading}
       </h1>
 
       <div style={{ marginTop: 40, marginBottom: 32 }}>
-        <label style={labelStyle}>What&apos;s your story?</label>
+        <label style={labelStyle}>{t.prompt.label}</label>
         <textarea
           value={concept}
           onChange={(e) => setConcept(e.target.value)}
-          placeholder="A detective investigates a murder that turns out to be her own..."
+          placeholder={t.prompt.placeholder}
           rows={4}
           style={{
             ...underlineInput,
@@ -97,7 +99,7 @@ export function PromptStep() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24, marginBottom: 32 }}>
         <div>
-          <label style={labelStyle}>Genre</label>
+          <label style={labelStyle}>{t.prompt.genre}</label>
           <select
             value={genre}
             onChange={(e) => setGenre(e.target.value as Genre)}
@@ -107,17 +109,17 @@ export function PromptStep() {
           </select>
         </div>
         <div>
-          <label style={labelStyle}>Tone</label>
+          <label style={labelStyle}>{t.prompt.tone}</label>
           <select
             value={tone}
             onChange={(e) => setTone(e.target.value as Tone)}
             style={{ ...underlineInput, fontFamily: "var(--font-space-mono), monospace", fontSize: 13 }}
           >
-            {TONES.map((t) => <option key={t} value={t}>{t.toUpperCase()}</option>)}
+            {TONES.map((t2) => <option key={t2} value={t2}>{t2.toUpperCase()}</option>)}
           </select>
         </div>
         <div>
-          <label style={labelStyle}>Visual Style</label>
+          <label style={labelStyle}>{t.prompt.visualStyle}</label>
           <select
             value={visualStyle}
             onChange={(e) => setVisualStyle(e.target.value as VisualStyle)}
@@ -130,7 +132,7 @@ export function PromptStep() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, marginBottom: 40 }}>
         <div>
-          <label style={labelStyle}>Duration</label>
+          <label style={labelStyle}>{t.prompt.duration}</label>
           <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
             {DURATIONS.map((d) => (
               <label key={d} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
@@ -149,7 +151,7 @@ export function PromptStep() {
           </div>
         </div>
         <div>
-          <label style={labelStyle}>Aspect Ratio</label>
+          <label style={labelStyle}>{t.prompt.aspectRatio}</label>
           <div style={{ display: "flex", gap: 16, marginTop: 4 }}>
             {(["9:16", "16:9"] as AspectRatio[]).map((ar) => (
               <label key={ar} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
@@ -161,7 +163,7 @@ export function PromptStep() {
                   style={{ accentColor: "var(--accent)" }}
                 />
                 <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 12, color: aspectRatio === ar ? "var(--text-display)" : "var(--text-secondary)" }}>
-                  {ar} {ar === "9:16" ? "VERTICAL" : "CINEMATIC"}
+                  {ar} {ar === "9:16" ? t.prompt.vertical : t.prompt.cinematic}
                 </span>
               </label>
             ))}
@@ -192,7 +194,7 @@ export function PromptStep() {
           minHeight: 40,
         }}
       >
-        {generating ? "[GENERATING...]" : "GENERATE STORY ──→"}
+        {generating ? t.prompt.generating : t.prompt.generate}
       </button>
     </div>
   );

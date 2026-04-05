@@ -1,13 +1,15 @@
 "use client";
 import { useProjectStore } from "@/stores/project-store";
+import { useLangStore } from "@/stores/lang-store";
 
 export function StoryStep() {
   const { story, setCurrentStep } = useProjectStore();
+  const { t } = useLangStore();
 
   if (!story) {
     return (
       <p style={{ fontFamily: "var(--font-space-mono), monospace", color: "var(--text-secondary)", fontSize: 13 }}>
-        [NO STORY — return to CONCEPT]
+        {t.story.noStory}
       </p>
     );
   }
@@ -15,7 +17,7 @@ export function StoryStep() {
   return (
     <div style={{ maxWidth: 900 }}>
       <h1 className="font-display" style={{ fontSize: 36, color: "var(--text-display)", marginBottom: 4 }}>
-        02 — STORY
+        {t.story.heading}
       </h1>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 48, marginTop: 32 }}>
@@ -37,7 +39,7 @@ export function StoryStep() {
                 color: "var(--accent)",
                 marginBottom: 8,
               }}>
-                SCENE {String(si + 1).padStart(2, "0")} — {scene.heading}
+                {t.story.scene} {String(si + 1).padStart(2, "0")} — {scene.heading}
               </p>
               <p style={{ fontFamily: "var(--font-space-grotesk), sans-serif", fontSize: 14, color: "var(--text-secondary)", marginBottom: 12 }}>
                 {scene.description}
@@ -87,7 +89,7 @@ export function StoryStep() {
         {/* Right: character list */}
         <div>
           <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, letterSpacing: "0.08em", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 16 }}>
-            CHARACTERS — {story.characters.length}
+            {t.story.characters} — {story.characters.length}
           </p>
           {story.characters.map((char) => (
             <div key={char.id} style={{ marginBottom: 20, paddingBottom: 20, borderBottom: "1px solid var(--border)" }}>
@@ -121,7 +123,7 @@ export function StoryStep() {
           cursor: "pointer",
         }}
       >
-        DEFINE CHARACTERS ──→
+        {t.story.next}
       </button>
     </div>
   );

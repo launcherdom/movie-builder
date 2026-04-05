@@ -1,5 +1,6 @@
 "use client";
 import { useProjectStore } from "@/stores/project-store";
+import { useLangStore } from "@/stores/lang-store";
 import { PanelGrid } from "@/components/storyboard/panel-grid";
 import type { QualityTier } from "@/types/movie";
 
@@ -7,11 +8,12 @@ const TIERS: QualityTier[] = ["draft", "standard", "premium"];
 
 export function StoryboardStep() {
   const { story, qualityTier, setQualityTier, setCurrentStep, aspectRatio } = useProjectStore();
+  const { t } = useLangStore();
 
   if (!story) {
     return (
       <p style={{ fontFamily: "var(--font-space-mono), monospace", color: "var(--text-secondary)", fontSize: 13 }}>
-        [NO STORY — return to CONCEPT]
+        {t.storyboard.noStory}
       </p>
     );
   }
@@ -24,11 +26,11 @@ export function StoryboardStep() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 32 }}>
         <div>
           <h1 className="font-display" style={{ fontSize: 36, color: "var(--text-display)", marginBottom: 4 }}>
-            04 — BOARD
+            {t.storyboard.heading}
           </h1>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
             <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-secondary)", letterSpacing: "0.08em" }}>
-              PANELS
+              {t.storyboard.panels}
             </span>
             <div style={{ display: "flex", gap: 2 }}>
               {Array.from({ length: Math.min(totalPanels, 24) }).map((_, i) => (
@@ -49,13 +51,13 @@ export function StoryboardStep() {
         </div>
 
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-          {TIERS.map((t) => (
-            <label key={t} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+          {TIERS.map((tier) => (
+            <label key={tier} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
               <input
                 type="radio"
                 name="tier"
-                checked={qualityTier === t}
-                onChange={() => setQualityTier(t)}
+                checked={qualityTier === tier}
+                onChange={() => setQualityTier(tier)}
                 style={{ accentColor: "var(--accent)" }}
               />
               <span style={{
@@ -63,9 +65,9 @@ export function StoryboardStep() {
                 fontSize: 11,
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
-                color: qualityTier === t ? "var(--text-display)" : "var(--text-secondary)",
+                color: qualityTier === tier ? "var(--text-display)" : "var(--text-secondary)",
               }}>
-                {t}
+                {tier}
               </span>
             </label>
           ))}
@@ -93,7 +95,7 @@ export function StoryboardStep() {
           cursor: donePanels > 0 ? "pointer" : "not-allowed",
         }}
       >
-        GENERATE VIDEO ──→
+        {t.storyboard.next}
       </button>
     </div>
   );

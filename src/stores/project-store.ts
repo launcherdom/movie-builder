@@ -81,7 +81,7 @@ function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectSto
       updatedAt: new Date().toISOString(),
     }),
 
-    setStory: (story) => set({ story, currentStep: "characters" }),
+    setStory: (story) => set({ story, currentStep: "story" }),
 
     updateCharacter: (id, patch) =>
       set((state) => {

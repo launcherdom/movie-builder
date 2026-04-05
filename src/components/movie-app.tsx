@@ -1,5 +1,6 @@
 "use client";
 import { useProjectStore } from "@/stores/project-store";
+import { useLangStore } from "@/stores/lang-store";
 import type { PipelineStep } from "@/types/movie";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PromptStep } from "@/components/steps/prompt-step";
@@ -8,13 +9,10 @@ import { CharactersStep } from "@/components/steps/characters-step";
 import { StoryboardStep } from "@/components/steps/storyboard-step";
 import { VideoStep } from "@/components/steps/video-step";
 
-const STEPS: { key: PipelineStep; label: string; num: string }[] = [
-  { key: "prompt",     label: "CONCEPT",    num: "01" },
-  { key: "story",      label: "STORY",      num: "02" },
-  { key: "characters", label: "CHARACTERS", num: "03" },
-  { key: "storyboard", label: "BOARD",      num: "04" },
-  { key: "video",      label: "VIDEO",      num: "05" },
-];
+const STEP_KEYS: PipelineStep[] = ["prompt", "story", "characters", "storyboard", "video"];
+const STEP_NUMS: Record<PipelineStep, string> = {
+  prompt: "01", story: "02", characters: "03", storyboard: "04", video: "05",
+};
 
 function canGoToStep(current: PipelineStep, target: PipelineStep, hasStory: boolean): boolean {
   const order: PipelineStep[] = ["prompt", "story", "characters", "storyboard", "video"];
@@ -29,6 +27,7 @@ function canGoToStep(current: PipelineStep, target: PipelineStep, hasStory: bool
 
 export function MovieApp() {
   const { currentStep, story, setCurrentStep } = useProjectStore();
+  const { locale, t, setLocale } = useLangStore();
 
   const hasStory = !!story;
 
@@ -57,11 +56,11 @@ export function MovieApp() {
             color: "var(--text-display)",
           }}
         >
-          🎬 MOVIE BUILDER
+          🎬 {t.appTitle}
         </span>
 
         <nav style={{ display: "flex", gap: 32, alignItems: "center" }}>
-          {STEPS.map(({ key, label, num }) => {
+          {STEP_KEYS.map((key) => {
             const allowed = canGoToStep(currentStep, key, hasStory);
             const isActive = currentStep === key;
             return (
@@ -84,13 +83,47 @@ export function MovieApp() {
                     : "var(--text-disabled)",
                 }}
               >
-                {num} {label}
+                {STEP_NUMS[key]} {t.steps[key]}
               </button>
             );
           })}
         </nav>
 
-        <ThemeToggle />
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {/* Lang toggle */}
+          <div
+            style={{
+              display: "flex",
+              border: "1px solid var(--border-visible)",
+              borderRadius: "var(--radius-btn)",
+              overflow: "hidden",
+              height: 32,
+            }}
+          >
+            {(["en", "ko"] as const).map((l) => (
+              <button
+                key={l}
+                onClick={() => setLocale(l)}
+                style={{
+                  fontFamily: "var(--font-space-mono), monospace",
+                  fontSize: 11,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  padding: "0 14px",
+                  cursor: "pointer",
+                  border: "none",
+                  background: locale === l ? "var(--text-display)" : "transparent",
+                  color: locale === l ? "var(--black)" : "var(--text-secondary)",
+                  transition: "background 0.15s, color 0.15s",
+                }}
+              >
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
+          <ThemeToggle />
+        </div>
       </header>
 
       <main style={{ padding: "40px 24px", maxWidth: 1200, margin: "0 auto" }}>

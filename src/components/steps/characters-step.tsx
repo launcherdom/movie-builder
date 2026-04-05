@@ -1,17 +1,19 @@
 "use client";
 import { useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
+import { useLangStore } from "@/stores/lang-store";
 import { CharacterCard } from "@/components/characters/character-card";
 import type { Character } from "@/types/movie";
 
 export function CharactersStep() {
   const { story, setCurrentStep } = useProjectStore();
+  const { t } = useLangStore();
   const [generatingAll, setGeneratingAll] = useState(false);
 
   if (!story) {
     return (
       <p style={{ fontFamily: "var(--font-space-mono), monospace", color: "var(--text-secondary)", fontSize: 13 }}>
-        [NO STORY — return to CONCEPT]
+        {t.characters.noStory}
       </p>
     );
   }
@@ -44,10 +46,10 @@ export function CharactersStep() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 32 }}>
         <div>
           <h1 className="font-display" style={{ fontSize: 36, color: "var(--text-display)", marginBottom: 4 }}>
-            03 — CHARACTERS
+            {t.characters.heading}
           </h1>
           <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, letterSpacing: "0.08em", color: "var(--text-secondary)" }}>
-            ALL CHARACTERS — {story.characters.length}
+            {t.characters.all} — {story.characters.length}
           </p>
         </div>
         <button
@@ -66,7 +68,7 @@ export function CharactersStep() {
             cursor: (generatingAll || allSheetsGenerated) ? "not-allowed" : "pointer",
           }}
         >
-          {generatingAll ? "[GENERATING...]" : allSheetsGenerated ? "ALL SHEETS DONE" : "GENERATE ALL SHEETS"}
+          {generatingAll ? t.characters.generating : allSheetsGenerated ? t.characters.allDone : t.characters.generateAll}
         </button>
       </div>
 
@@ -92,7 +94,7 @@ export function CharactersStep() {
           cursor: "pointer",
         }}
       >
-        GENERATE STORYBOARD ──→
+        {t.characters.next}
       </button>
     </div>
   );
