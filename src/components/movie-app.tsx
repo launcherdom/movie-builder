@@ -16,14 +16,14 @@ const STEPS: { key: PipelineStep; label: string; num: string }[] = [
   { key: "video",      label: "VIDEO",      num: "05" },
 ];
 
-function canGoToStep(current: PipelineStep, target: PipelineStep, hasStory: boolean, allSheetsGenerated: boolean): boolean {
+function canGoToStep(current: PipelineStep, target: PipelineStep, hasStory: boolean): boolean {
   const order: PipelineStep[] = ["prompt", "story", "characters", "storyboard", "video"];
   const cur = order.indexOf(current);
   const tgt = order.indexOf(target);
   if (tgt <= cur) return true;
   if (target === "characters" && !hasStory) return false;
-  if (target === "storyboard" && !allSheetsGenerated) return false;
-  if (target === "video" && !allSheetsGenerated) return false;
+  if (target === "storyboard" && !hasStory) return false;
+  if (target === "video" && !hasStory) return false;
   return tgt <= cur + 1;
 }
 
@@ -31,10 +31,6 @@ export function MovieApp() {
   const { currentStep, story, setCurrentStep } = useProjectStore();
 
   const hasStory = !!story;
-  const allSheetsGenerated =
-    hasStory &&
-    story.characters.length > 0 &&
-    story.characters.every((c) => !!c.characterSheet);
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--black)" }}>
@@ -66,7 +62,7 @@ export function MovieApp() {
 
         <nav style={{ display: "flex", gap: 32, alignItems: "center" }}>
           {STEPS.map(({ key, label, num }) => {
-            const allowed = canGoToStep(currentStep, key, hasStory, allSheetsGenerated);
+            const allowed = canGoToStep(currentStep, key, hasStory);
             const isActive = currentStep === key;
             return (
               <button

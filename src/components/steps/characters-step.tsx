@@ -16,7 +16,7 @@ export function CharactersStep() {
     );
   }
 
-  const allSheetsGenerated = story.characters.length > 0 && story.characters.every((c) => !!c.characterSheet);
+  const allSheetsGenerated = story.characters.every((c) => !!c.characterSheet);
 
   const handleGenerateAll = async () => {
     setGeneratingAll(true);
@@ -78,19 +78,18 @@ export function CharactersStep() {
 
       <button
         onClick={() => setCurrentStep("storyboard")}
-        disabled={!allSheetsGenerated}
         style={{
           marginTop: 16,
           fontFamily: "var(--font-space-mono), monospace",
           fontSize: 12,
           letterSpacing: "0.06em",
           textTransform: "uppercase",
-          background: allSheetsGenerated ? "var(--text-display)" : "var(--border)",
-          color: allSheetsGenerated ? "var(--black)" : "var(--text-disabled)",
+          background: "var(--text-display)",
+          color: "var(--black)",
           border: "none",
           borderRadius: "var(--radius-btn)",
           padding: "12px 32px",
-          cursor: allSheetsGenerated ? "pointer" : "not-allowed",
+          cursor: "pointer",
         }}
       >
         GENERATE STORYBOARD ──→
