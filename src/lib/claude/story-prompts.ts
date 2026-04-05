@@ -181,7 +181,7 @@ export function parseStoryResponse(response: ClaudeResponse): Story {
   if (!toolBlock || !toolBlock.input) throw new Error("No tool_use block in Claude response");
 
   const raw = toolBlock.input as Record<string, unknown>;
-  const characters = (raw.characters as Array<Record<string, unknown>>).map((c) => ({
+  const characters = ((raw.characters as Array<Record<string, unknown>>) ?? []).map((c) => ({
     id: (c.id as string) || nanoid(),
     name: c.name as string,
     age: c.age as string | undefined,
@@ -190,7 +190,7 @@ export function parseStoryResponse(response: ClaudeResponse): Story {
     personality: c.personality as string,
   }));
 
-  const scenes = (raw.scenes as Array<Record<string, unknown>>).map((sc, scIdx) => ({
+  const scenes = ((raw.scenes as Array<Record<string, unknown>>) ?? []).map((sc, scIdx) => ({
     id: (sc.id as string) || nanoid(),
     orderIndex: scIdx,
     heading: sc.heading as string,

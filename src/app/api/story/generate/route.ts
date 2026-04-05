@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       max_tokens: 4096,
       system: systemPrompt,
       tools: [SCREENPLAY_TOOL],
-      tool_choice: { type: "any" },
+      tool_choice: { type: "tool", name: "create_screenplay" },
       messages: [
         {
           role: "user",
