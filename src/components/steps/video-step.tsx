@@ -184,7 +184,6 @@ function ShotVideoCard({ shot, shotIndex }: { shot: Shot; shotIndex: number }) {
 
 export function VideoStep() {
   const { story, setGenerating, qualityTier } = useProjectStore();
-  const projectId = useProjectStore((s) => s.id);
   const [assembling, setAssembling] = useState(false);
   const [assembledUrl, setAssembledUrl] = useState<string | null>(null);
   const [assembleError, setAssembleError] = useState<string | null>(null);
@@ -206,15 +205,29 @@ export function VideoStep() {
     setAssembleError(null);
     setAssembledUrl(null);
     try {
-      const clips = readyClips.map((sh) => ({ url: sh.videoClip!.url, duration: sh.duration }));
-      const res = await fetch("/api/video/assemble", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clips, projectId }),
+      const { FFmpeg } = await import("@ffmpeg/ffmpeg");
+      const { fetchFile, toBlobURL } = await import("@ffmpeg/util");
+
+      const ffmpeg = new FFmpeg();
+      const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
       });
-      if (!res.ok) throw new Error(await res.text());
-      const { url } = await res.json();
-      setAssembledUrl(url);
+
+      const clipUrls = readyClips.map((sh) => sh.videoClip!.url);
+      for (let i = 0; i < clipUrls.length; i++) {
+        await ffmpeg.writeFile(`clip${i}.mp4`, await fetchFile(clipUrls[i]));
+      }
+
+      const concatList = clipUrls.map((_, i) => `file 'clip${i}.mp4'`).join("\n");
+      await ffmpeg.writeFile("list.txt", concatList);
+
+      await ffmpeg.exec(["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "output.mp4"]);
+
+      const data = await ffmpeg.readFile("output.mp4");
+      const blob = new Blob([new Uint8Array(data as Uint8Array)], { type: "video/mp4" });
+      setAssembledUrl(URL.createObjectURL(blob));
     } catch (e) {
       setAssembleError(e instanceof Error ? e.message : "Assembly failed");
     } finally {
