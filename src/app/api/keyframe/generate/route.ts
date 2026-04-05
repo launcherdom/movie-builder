@@ -43,9 +43,19 @@ export async function POST(request: NextRequest) {
 
     const model = getImageModel(qualityTier);
 
+    // Reference images: character sheets + storyboard panels for composition guidance
+    const characterRefs = characters
+      .filter((c) => c.characterSheet?.url)
+      .map((c) => c.characterSheet!.url);
+
     const results = await Promise.all(
       shots.map(async (shot) => {
         const prompt = buildKeyframePrompt(shot, sceneDescription, characters, visualStyle);
+
+        // Include storyboard panel as composition reference if available
+        const refImages = shot.storyboardPanel?.url
+          ? [...characterRefs, shot.storyboardPanel.url]
+          : characterRefs;
 
         const input: Record<string, unknown> = {
           prompt,
@@ -54,6 +64,9 @@ export async function POST(request: NextRequest) {
           output_format: "png",
           resolution: "1K",
         };
+        if (refImages.length > 0) {
+          input.image_urls = refImages;
+        }
 
         const result = await fal.subscribe(model.endpoint, { input });
         const data = result.data as { images: Array<{ url: string; width: number; height: number }> };

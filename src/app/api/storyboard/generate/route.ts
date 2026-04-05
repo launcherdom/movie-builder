@@ -46,6 +46,9 @@ export async function POST(request: NextRequest) {
           output_format: "png",
           resolution: "1K",
         };
+        if (referenceImages.length > 0) {
+          input.image_urls = referenceImages;
+        }
 
         const result = await fal.subscribe(model.endpoint, { input });
         const data = result.data as { images: Array<{ url: string; width: number; height: number }> };
