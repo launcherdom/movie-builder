@@ -1,9 +1,86 @@
 "use client";
+import { useState, useRef } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { useLangStore } from "@/stores/lang-store";
+import type { ShotType } from "@/types/movie";
+
+const SHOT_TYPES: ShotType[] = ["CU", "MCU", "MS", "MWS", "WS", "EWS", "OTS", "POV", "HIGH", "LOW"];
+
+function EditableText({
+  value,
+  onSave,
+  multiline = false,
+  style,
+}: {
+  value: string;
+  onSave: (v: string) => void;
+  multiline?: boolean;
+  style?: React.CSSProperties;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const ref = useRef<HTMLTextAreaElement & HTMLInputElement>(null);
+
+  const commit = () => {
+    setEditing(false);
+    if (draft.trim() !== value) onSave(draft.trim() || value);
+  };
+
+  if (editing) {
+    const shared: React.CSSProperties = {
+      ...style,
+      background: "var(--surface)",
+      border: "1px solid var(--border-visible)",
+      borderRadius: 4,
+      color: "var(--text-primary)",
+      padding: "4px 8px",
+      outline: "none",
+      resize: "vertical" as const,
+      width: "100%",
+      fontFamily: "inherit",
+      fontSize: "inherit",
+    };
+    return multiline ? (
+      <textarea
+        ref={ref as React.RefObject<HTMLTextAreaElement>}
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        rows={3}
+        style={shared}
+      />
+    ) : (
+      <input
+        ref={ref as React.RefObject<HTMLInputElement>}
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === "Enter" && commit()}
+        style={{ ...shared, display: "block" }}
+      />
+    );
+  }
+
+  return (
+    <span
+      onClick={() => { setDraft(value); setEditing(true); }}
+      title="Click to edit"
+      style={{
+        ...style,
+        cursor: "text",
+        borderBottom: "1px dashed var(--border-visible)",
+        paddingBottom: 1,
+      }}
+    >
+      {value}
+    </span>
+  );
+}
 
 export function StoryStep() {
-  const { story, setCurrentStep } = useProjectStore();
+  const { story, setCurrentStep, updateScene, updateShotField } = useProjectStore();
   const { t } = useLangStore();
 
   if (!story) {
@@ -32,55 +109,89 @@ export function StoryStep() {
 
           {story.scenes.map((scene, si) => (
             <div key={scene.id} style={{ marginBottom: 32 }}>
-              <p style={{
-                fontFamily: "var(--font-space-mono), monospace",
-                fontSize: 12,
-                letterSpacing: "0.08em",
-                color: "var(--accent)",
-                marginBottom: 8,
-              }}>
-                {t.story.scene} {String(si + 1).padStart(2, "0")} — {scene.heading}
-              </p>
-              <p style={{ fontFamily: "var(--font-space-grotesk), sans-serif", fontSize: 14, color: "var(--text-secondary)", marginBottom: 12 }}>
-                {scene.description}
-              </p>
+              {/* Scene heading */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 12, letterSpacing: "0.08em", color: "var(--accent)", whiteSpace: "nowrap" }}>
+                  {t.story.scene} {String(si + 1).padStart(2, "0")} —
+                </span>
+                <EditableText
+                  value={scene.heading}
+                  onSave={(v) => updateScene(scene.id, { heading: v })}
+                  style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 12, letterSpacing: "0.08em", color: "var(--accent)" }}
+                />
+              </div>
+
+              {/* Scene description */}
+              <div style={{ marginBottom: 12 }}>
+                <EditableText
+                  value={scene.description}
+                  onSave={(v) => updateScene(scene.id, { description: v })}
+                  multiline
+                  style={{ fontFamily: "var(--font-space-grotesk), sans-serif", fontSize: 14, color: "var(--text-secondary)" }}
+                />
+              </div>
+
+              {/* Shots */}
               {scene.shots.map((shot) => (
-                <div key={shot.id} style={{ display: "flex", gap: 12, marginBottom: 8, alignItems: "flex-start" }}>
-                  <span style={{
-                    fontFamily: "var(--font-space-mono), monospace",
-                    fontSize: 11,
-                    border: "1px solid var(--border-visible)",
-                    borderRadius: 4,
-                    padding: "2px 8px",
-                    color: "var(--text-primary)",
-                    whiteSpace: "nowrap",
-                  }}>
-                    {shot.shotType}
-                  </span>
-                  <span style={{
-                    fontFamily: "var(--font-space-mono), monospace",
-                    fontSize: 11,
-                    color: "var(--text-disabled)",
-                    whiteSpace: "nowrap",
-                  }}>
-                    {shot.duration}S
-                  </span>
-                  <span style={{ fontFamily: "var(--font-space-grotesk), sans-serif", fontSize: 14, color: "var(--text-primary)" }}>
-                    {shot.description}
-                  </span>
+                <div key={shot.id} style={{ marginBottom: 12, paddingLeft: 12, borderLeft: "2px solid var(--border)" }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 4 }}>
+                    {/* Shot type selector */}
+                    <select
+                      value={shot.shotType}
+                      onChange={(e) => updateShotField(shot.id, { shotType: e.target.value as ShotType })}
+                      style={{
+                        fontFamily: "var(--font-space-mono), monospace",
+                        fontSize: 10,
+                        border: "1px solid var(--border-visible)",
+                        borderRadius: 4,
+                        padding: "2px 4px",
+                        color: "var(--text-primary)",
+                        background: "var(--surface)",
+                        cursor: "pointer",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {SHOT_TYPES.map((st) => <option key={st} value={st}>{st}</option>)}
+                    </select>
+                    {/* Duration */}
+                    <input
+                      type="number"
+                      min={3}
+                      max={8}
+                      value={shot.duration}
+                      onChange={(e) => updateShotField(shot.id, { duration: Number(e.target.value) })}
+                      style={{
+                        fontFamily: "var(--font-space-mono), monospace",
+                        fontSize: 11,
+                        width: 44,
+                        border: "1px solid var(--border-visible)",
+                        borderRadius: 4,
+                        padding: "2px 4px",
+                        color: "var(--text-disabled)",
+                        background: "var(--surface)",
+                        flexShrink: 0,
+                        textAlign: "center",
+                      }}
+                    />
+                    <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-disabled)", flexShrink: 0, marginTop: 2 }}>S</span>
+                    {/* Shot description */}
+                    <EditableText
+                      value={shot.description}
+                      onSave={(v) => updateShotField(shot.id, { description: v })}
+                      style={{ fontFamily: "var(--font-space-grotesk), sans-serif", fontSize: 14, color: "var(--text-primary)" }}
+                    />
+                  </div>
+                  {/* Dialogue */}
+                  {shot.dialogue !== undefined && (
+                    <div style={{ paddingLeft: 80 }}>
+                      <EditableText
+                        value={shot.dialogue}
+                        onSave={(v) => updateShotField(shot.id, { dialogue: v })}
+                        style={{ fontFamily: "var(--font-space-grotesk), sans-serif", fontSize: 13, fontStyle: "italic", color: "var(--text-secondary)" }}
+                      />
+                    </div>
+                  )}
                 </div>
-              ))}
-              {scene.shots.filter((s) => s.dialogue).map((shot) => (
-                <p key={`d-${shot.id}`} style={{
-                  fontFamily: "var(--font-space-grotesk), sans-serif",
-                  fontSize: 14,
-                  fontStyle: "italic",
-                  color: "var(--text-secondary)",
-                  paddingLeft: 24,
-                  marginTop: 4,
-                }}>
-                  &ldquo;{shot.dialogue}&rdquo;
-                </p>
               ))}
             </div>
           ))}

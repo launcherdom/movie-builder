@@ -22,6 +22,8 @@ interface ProjectActions {
   setStory: (story: Story) => void;
   updateCharacter: (id: string, patch: Partial<Character>) => void;
   updateCharacterSheet: (id: string, sheet: GeneratedImage) => void;
+  updateScene: (sceneId: string, patch: Partial<import("@/types/movie").Scene>) => void;
+  updateShotField: (shotId: string, patch: Partial<Shot>) => void;
   setShotImageStatus: (shotId: string, status: GenerationStatus) => void;
   setShotPanel: (shotId: string, panel: GeneratedImage, prompt: string) => void;
   setShotKeyframeStatus: (shotId: string, status: GenerationStatus) => void;
@@ -108,6 +110,20 @@ function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectSto
           },
         };
       }),
+
+    updateScene: (sceneId, patch) =>
+      set((state) => {
+        if (!state.story) return {};
+        return {
+          story: {
+            ...state.story,
+            scenes: state.story.scenes.map((sc) => sc.id === sceneId ? { ...sc, ...patch } : sc),
+          },
+        };
+      }),
+
+    updateShotField: (shotId, patch) =>
+      set((state) => updateShot(state, shotId, patch)),
 
     setShotImageStatus: (shotId, status) =>
       set((state) => updateShot(state, shotId, { imageStatus: status })),
