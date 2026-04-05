@@ -1,1 +1,1 @@
-EN/KO 언어 전환 기능 추가, 스토리 생성 후 2단계 탭으로 이동하도록 수정
+스토리 생성 API tool_choice 강제 지정, characters/scenes undefined 방어 처리
