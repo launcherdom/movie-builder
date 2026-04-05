@@ -42,7 +42,7 @@ function buildDefaultVideoPromptJson(shot: Shot): VideoPromptJson {
 }
 
 function ShotVideoCard({ shot, shotIndex }: { shot: Shot; shotIndex: number }) {
-  const { setShotVideo, setShotVideoStatus, setShotVideoPromptJson, qualityTier } = useProjectStore();
+  const { setShotVideo, setShotVideoStatus, setShotVideoPromptJson, qualityTier, aspectRatio } = useProjectStore();
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,6 +70,7 @@ function ShotVideoCard({ shot, shotIndex }: { shot: Shot; shotIndex: number }) {
           videoPromptJson: shot.videoPromptJson ?? json,
           duration: shot.duration,
           qualityTier,
+          aspectRatio,
         }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -184,7 +185,7 @@ function ShotVideoCard({ shot, shotIndex }: { shot: Shot; shotIndex: number }) {
 }
 
 export function VideoStep() {
-  const { story, setGenerating, qualityTier } = useProjectStore();
+  const { story, setGenerating, qualityTier, aspectRatio } = useProjectStore();
   const { t } = useLangStore();
   const [assembling, setAssembling] = useState(false);
   const [assembledUrl, setAssembledUrl] = useState<string | null>(null);
@@ -254,6 +255,7 @@ export function VideoStep() {
             videoPromptJson: json,
             duration: shot.duration,
             qualityTier,
+            aspectRatio,
           }),
         });
         if (!res.ok) continue;

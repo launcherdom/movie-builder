@@ -7,13 +7,14 @@ fal.config({ credentials: process.env.FAL_KEY });
 
 export async function POST(request: NextRequest) {
   try {
-    const { shotId, imageUrl, videoPromptJson, duration, qualityTier } =
+    const { shotId, imageUrl, videoPromptJson, duration, qualityTier, aspectRatio } =
       await request.json() as {
         shotId: string;
         imageUrl: string;
         videoPromptJson: VideoPromptJson;
         duration: number;
         qualityTier: QualityTier;
+        aspectRatio?: string;
       };
 
     if (!imageUrl || !videoPromptJson) {
@@ -28,6 +29,7 @@ export async function POST(request: NextRequest) {
         prompt,
         image_url: imageUrl,
         duration: Math.min(duration, model.maxDuration),
+        aspect_ratio: aspectRatio ?? "9:16",
       },
     });
 
