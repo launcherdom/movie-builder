@@ -1,1 +1,1 @@
-스토리 생성 API tool_choice 강제 지정, characters/scenes undefined 방어 처리
+영상 생성 시 화면 비율(aspect_ratio) 미전달 버그 수정
