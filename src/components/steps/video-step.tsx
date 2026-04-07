@@ -247,6 +247,7 @@ export function VideoStep() {
   const [assembling, setAssembling] = useState(false);
   const [assembledUrl, setAssembledUrl] = useState<string | null>(null);
   const [assembleError, setAssembleError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   if (!story) {
     return (
@@ -259,6 +260,30 @@ export function VideoStep() {
   const allShots = story.scenes.flatMap((sc) => sc.shots);
   const doneClips = allShots.filter((sh) => sh.videoStatus === "done").length;
   const readyClips = allShots.filter((sh) => sh.videoStatus === "done" && sh.videoClip);
+
+  const handleExportCapcut = async () => {
+    setExporting(true);
+    try {
+      const { aspectRatio } = useProjectStore.getState();
+      const res = await fetch("/api/export/capcut", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ story, aspectRatio }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${story.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}_capcut.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("CapCut export failed:", e);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleAssemble = async () => {
     setAssembling(true);
@@ -410,6 +435,28 @@ export function VideoStep() {
         </div>
       ))}
 
+      {/* CapCut export — available whenever any shots exist */}
+      <div style={{ marginTop: 32, display: "flex", justifyContent: "flex-end" }}>
+        <button
+          onClick={handleExportCapcut}
+          disabled={exporting}
+          style={{
+            fontFamily: "var(--font-space-mono), monospace",
+            fontSize: 11,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            background: "transparent",
+            border: "1px solid var(--border-visible)",
+            borderRadius: "var(--radius-btn)",
+            color: exporting ? "var(--text-disabled)" : "var(--text-secondary)",
+            padding: "8px 20px",
+            cursor: exporting ? "not-allowed" : "pointer",
+          }}
+        >
+          {exporting ? "[EXPORTING...]" : "EXPORT TO CAPCUT"}
+        </button>
+      </div>
+
       {/* Assembly section */}
       {readyClips.length > 0 && (
         <div style={{ marginTop: 48, borderTop: "1px solid var(--border-visible)", paddingTop: 32 }}>
@@ -451,25 +498,45 @@ export function VideoStep() {
           {assembledUrl && (
             <div style={{ marginTop: 16 }}>
               <video src={assembledUrl} controls style={{ width: "100%", borderRadius: "var(--radius-card)", marginBottom: 16 }} />
-              <a
-                href={assembledUrl}
-                download="movie.mp4"
-                style={{
-                  display: "inline-block",
-                  fontFamily: "var(--font-space-mono), monospace",
-                  fontSize: 12,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  background: "transparent",
-                  border: "1px solid var(--border-visible)",
-                  borderRadius: "var(--radius-btn)",
-                  color: "var(--text-primary)",
-                  padding: "10px 28px",
-                  textDecoration: "none",
-                }}
-              >
-                {t.video.download}
-              </a>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <a
+                  href={assembledUrl}
+                  download="movie.mp4"
+                  style={{
+                    display: "inline-block",
+                    fontFamily: "var(--font-space-mono), monospace",
+                    fontSize: 12,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    background: "transparent",
+                    border: "1px solid var(--border-visible)",
+                    borderRadius: "var(--radius-btn)",
+                    color: "var(--text-primary)",
+                    padding: "10px 28px",
+                    textDecoration: "none",
+                  }}
+                >
+                  {t.video.download}
+                </a>
+                <button
+                  onClick={handleExportCapcut}
+                  disabled={exporting}
+                  style={{
+                    fontFamily: "var(--font-space-mono), monospace",
+                    fontSize: 12,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    background: "transparent",
+                    border: "1px solid var(--border-visible)",
+                    borderRadius: "var(--radius-btn)",
+                    color: exporting ? "var(--text-disabled)" : "var(--text-primary)",
+                    padding: "10px 28px",
+                    cursor: exporting ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {exporting ? "[EXPORTING...]" : "EXPORT TO CAPCUT"}
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -21,6 +21,7 @@
     "@vercel/blob": "^2.3.3",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
+    "fflate": "^0.8.2",
     "lucide-react": "^1.7.0",
     "nanoid": "^5.1.7",
     "next": "16.2.1",
