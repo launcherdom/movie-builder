@@ -37,6 +37,7 @@ interface ProjectActions {
   setShotVideoStatus: (shotId: string, status: GenerationStatus) => void;
   setShotVideo: (shotId: string, video: GeneratedVideo) => void;
   setShotVideoPromptJson: (shotId: string, json: VideoPromptJson) => void;
+  setStyleReference: (image: GeneratedImage, analysis: string) => void;
   setQualityTier: (tier: QualityTier) => void;
   setActiveScene: (id: string | null) => void;
   setActiveShot: (id: string | null) => void;
@@ -218,6 +219,8 @@ function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectSto
 
     setShotVideoPromptJson: (shotId, json) =>
       set((state) => updateShot(state, shotId, { videoPromptJson: json })),
+
+    setStyleReference: (image, analysis) => set({ styleReferenceImage: image, styleAnalysis: analysis }),
 
     setQualityTier: (tier) => set({ qualityTier: tier }),
     setActiveScene: (id) => set({ activeSceneId: id }),

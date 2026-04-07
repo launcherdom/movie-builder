@@ -1,61 +1,31 @@
 import { fal } from "@fal-ai/client";
 import { NextRequest } from "next/server";
-import type { QualityTier, Character, Shot } from "@/types/movie";
+import type { QualityTier, Character, Shot, VisualStyle } from "@/types/movie";
 import { getImageModel } from "@/lib/fal/models";
+import { buildKeyframePrompt, serializeImagePrompt } from "@/lib/generation/prompt-builder";
 
 fal.config({ credentials: process.env.FAL_KEY });
 
-const STYLE_PREFIX: Record<string, string> = {
-  realistic: "Photorealistic cinematic film frame, 35mm film, shallow depth of field, film grain.",
-  cinematic: "Cinematic film frame, anamorphic lens, dramatic lighting, film grain.",
-  anime: "High quality anime frame, studio quality, detailed cel shading, vibrant colors.",
-  comic: "High quality comic book frame, vivid colors, detailed artwork, professional illustration.",
-};
-
-function buildKeyframePrompt(
-  shot: Shot,
-  sceneDescription: string,
-  characters: Character[],
-  visualStyle: string
-): string {
-  const stylePrefix = STYLE_PREFIX[visualStyle] ?? STYLE_PREFIX.realistic;
-  const shotChars = characters.filter((c) =>
-    shot.description.toLowerCase().includes(c.name.toLowerCase())
-  );
-  const charDescs = (shotChars.length > 0 ? shotChars : characters)
-    .map((c) => c.description)
-    .join(", ");
-
-  return `${stylePrefix} ${shot.shotType} shot. ${shot.description}. ${sceneDescription}. Characters: ${charDescs}. High quality, detailed.`;
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const { shots, sceneDescription, characters, qualityTier, visualStyle, aspectRatio } =
+    const { shots, sceneDescription, characters, qualityTier, visualStyle, aspectRatio, styleAnalysis } =
       await request.json() as {
         shots: Shot[];
         sceneDescription: string;
         characters: Character[];
         qualityTier: QualityTier;
-        visualStyle: string;
+        visualStyle: VisualStyle;
         aspectRatio: string;
+        styleAnalysis?: string;
       };
 
     const model = getImageModel(qualityTier);
-
-    // Reference images: character sheets + storyboard panels for composition guidance
-    const characterRefs = characters
-      .filter((c) => c.characterSheet?.url)
-      .map((c) => c.characterSheet!.url);
+    const scene = { description: sceneDescription };
 
     const results = await Promise.all(
       shots.map(async (shot) => {
-        const prompt = buildKeyframePrompt(shot, sceneDescription, characters, visualStyle);
-
-        // Include storyboard panel as composition reference if available
-        const refImages = shot.storyboardPanel?.url
-          ? [...characterRefs, shot.storyboardPanel.url]
-          : characterRefs;
+        const structured = buildKeyframePrompt(shot, scene, characters, visualStyle, styleAnalysis);
+        const prompt = serializeImagePrompt(structured);
 
         const input: Record<string, unknown> = {
           prompt,
@@ -64,9 +34,6 @@ export async function POST(request: NextRequest) {
           output_format: "png",
           resolution: "1K",
         };
-        if (refImages.length > 0) {
-          input.image_urls = refImages;
-        }
 
         const result = await fal.subscribe(model.endpoint, { input });
         const data = result.data as { images: Array<{ url: string; width: number; height: number }> };

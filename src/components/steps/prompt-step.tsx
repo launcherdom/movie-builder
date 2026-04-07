@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { useLangStore } from "@/stores/lang-store";
 import { useRouter } from "next/navigation";
@@ -33,7 +33,7 @@ const underlineInput: React.CSSProperties = {
 };
 
 export function PromptStep() {
-  const { initProject } = useProjectStore();
+  const { initProject, setStyleReference } = useProjectStore();
   const { t } = useLangStore();
   const router = useRouter();
 
@@ -45,6 +45,15 @@ export function PromptStep() {
   const [visualStyle, setVisualStyle] = useState<VisualStyle>("realistic");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [styleFile, setStyleFile] = useState<File | null>(null);
+  const [stylePreview, setStylePreview] = useState<string | null>(null);
+  const [styleUploading, setStyleUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleStyleFile = (file: File) => {
+    setStyleFile(file);
+    setStylePreview(URL.createObjectURL(file));
+  };
 
   const handleGenerate = async () => {
     if (!concept.trim()) {
@@ -58,6 +67,22 @@ export function PromptStep() {
     const projectId = useProjectStore.getState().id;
 
     try {
+      // Upload style reference if provided
+      if (styleFile) {
+        setStyleUploading(true);
+        const fd = new FormData();
+        fd.append("file", styleFile);
+        const styleRes = await fetch("/api/style/analyze", { method: "POST", body: fd });
+        if (styleRes.ok) {
+          const { blobUrl, styleAnalysis } = await styleRes.json() as { blobUrl: string; styleAnalysis: string };
+          setStyleReference(
+            { url: blobUrl, width: 0, height: 0 },
+            styleAnalysis
+          );
+        }
+        setStyleUploading(false);
+      }
+
       // Persist project to DB before generating story
       await fetch("/api/projects", {
         method: "POST",
@@ -176,6 +201,57 @@ export function PromptStep() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Style reference upload */}
+      <div style={{ marginBottom: 32 }}>
+        <label style={labelStyle}>STYLE REFERENCE (OPTIONAL)</label>
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type.startsWith("image/")) handleStyleFile(f); }}
+          style={{
+            border: "1px dashed var(--border-visible)",
+            borderRadius: 8,
+            padding: "20px 16px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            transition: "border-color 0.15s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--text-secondary)")}
+          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-visible)")}
+        >
+          {stylePreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={stylePreview} alt="style reference" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 4 }} />
+          ) : (
+            <div style={{ width: 64, height: 64, background: "var(--surface)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 24, color: "var(--text-disabled)" }}>+</span>
+            </div>
+          )}
+          <div>
+            <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: styleFile ? "var(--text-primary)" : "var(--text-secondary)" }}>
+              {styleFile ? styleFile.name : "DROP IMAGE OR CLICK"}
+            </p>
+            <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, color: "var(--text-disabled)", marginTop: 4 }}>
+              Claude Vision will analyze and apply the style to all generated images
+            </p>
+            {styleUploading && (
+              <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, color: "var(--accent)", marginTop: 4 }}>
+                [ANALYZING STYLE...]
+              </p>
+            )}
+          </div>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleStyleFile(f); }}
+        />
       </div>
 
       {error && (

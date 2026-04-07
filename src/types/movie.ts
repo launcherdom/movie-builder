@@ -26,6 +26,15 @@ export interface GeneratedVideo {
   hasAudio: boolean;
 }
 
+// ─── Image Prompt JSON ──────────────────────────────────
+export interface ImagePromptJson {
+  composition: string;   // shot type, framing, angle
+  subject: string;       // characters, appearance, action
+  environment: string;   // location, time of day, weather
+  cinematography: string; // lighting, color palette, visual style
+  negative: string;      // what to avoid in generation
+}
+
 // ─── Video Prompt JSON ───────────────────────────────────
 export interface VideoPromptJson {
   shot: {
@@ -129,6 +138,8 @@ export interface Project {
   qualityTier: QualityTier;
   story: Story | null;
   currentStep: PipelineStep;
+  styleReferenceImage?: GeneratedImage; // uploaded style reference
+  styleAnalysis?: string;               // Claude Vision style description
   createdAt: string;
   updatedAt: string;
 }
