@@ -5,6 +5,7 @@ import { useLangStore } from "@/stores/lang-store";
 import { buildDependencyPlan } from "@/lib/generation/dependency-plan";
 import { persistAsset } from "@/lib/assets/persist";
 import { PanelGrid } from "@/components/storyboard/panel-grid";
+import { CostBadge } from "@/components/ui/cost-badge";
 import type { QualityTier } from "@/types/movie";
 
 const TIERS: QualityTier[] = ["draft", "standard", "premium"];
@@ -134,6 +135,7 @@ export function StoryboardStep() {
             </label>
           ))}
 
+          <CostBadge scope="storyboard" />
           <button
             onClick={handleGenerateAll}
             disabled={generatingAll}

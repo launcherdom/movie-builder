@@ -43,6 +43,7 @@ function buildDefaultVideoPromptJson(shot: Shot): VideoPromptJson {
 }
 
 import type { GeneratedVideo } from "@/types/movie";
+import { CostBadge } from "@/components/ui/cost-badge";
 
 async function pollVideo(requestId: string, endpoint: string): Promise<GeneratedVideo> {
   while (true) {
@@ -376,23 +377,26 @@ export function VideoStep() {
             </span>
           </div>
         </div>
-        <button
-          onClick={handleGenerateAll}
-          style={{
-            fontFamily: "var(--font-space-mono), monospace",
-            fontSize: 11,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            background: "transparent",
-            border: "1px solid var(--border-visible)",
-            borderRadius: "var(--radius-btn)",
-            color: "var(--text-primary)",
-            padding: "8px 20px",
-            cursor: "pointer",
-          }}
-        >
-          {t.video.generateAll}
-        </button>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <CostBadge scope="video" />
+          <button
+            onClick={handleGenerateAll}
+            style={{
+              fontFamily: "var(--font-space-mono), monospace",
+              fontSize: 11,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              background: "transparent",
+              border: "1px solid var(--border-visible)",
+              borderRadius: "var(--radius-btn)",
+              color: "var(--text-primary)",
+              padding: "8px 20px",
+              cursor: "pointer",
+            }}
+          >
+            {t.video.generateAll}
+          </button>
+        </div>
       </div>
 
       {story.scenes.map((scene, si) => (
