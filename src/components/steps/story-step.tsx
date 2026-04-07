@@ -79,8 +79,20 @@ function EditableText({
   );
 }
 
+const iconBtn: React.CSSProperties = {
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  color: "var(--text-disabled)",
+  fontFamily: "var(--font-space-mono), monospace",
+  fontSize: 12,
+  padding: "2px 6px",
+  borderRadius: 4,
+  lineHeight: 1,
+};
+
 export function StoryStep() {
-  const { story, setCurrentStep, updateScene, updateShotField } = useProjectStore();
+  const { story, setCurrentStep, updateScene, updateShotField, addScene, removeScene, addShot, removeShot, duplicateShot } = useProjectStore();
   const { t } = useLangStore();
 
   if (!story) {
@@ -119,6 +131,13 @@ export function StoryStep() {
                   onSave={(v) => updateScene(scene.id, { heading: v })}
                   style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 12, letterSpacing: "0.08em", color: "var(--accent)" }}
                 />
+                {/* Scene actions */}
+                <div style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
+                  <button style={iconBtn} title="Add shot" onClick={() => addShot(scene.id, scene.shots.length - 1)}>+ SHOT</button>
+                  {story.scenes.length > 1 && (
+                    <button style={{ ...iconBtn, color: "var(--accent)" }} title="Remove scene" onClick={() => removeScene(scene.id)}>× SCENE</button>
+                  )}
+                </div>
               </div>
 
               {/* Scene description */}
@@ -178,8 +197,15 @@ export function StoryStep() {
                     <EditableText
                       value={shot.description}
                       onSave={(v) => updateShotField(shot.id, { description: v })}
-                      style={{ fontFamily: "var(--font-space-grotesk), sans-serif", fontSize: 14, color: "var(--text-primary)" }}
+                      style={{ fontFamily: "var(--font-space-grotesk), sans-serif", fontSize: 14, color: "var(--text-primary)", flex: 1 }}
                     />
+                    {/* Shot actions */}
+                    <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+                      <button style={iconBtn} title="Duplicate shot" onClick={() => duplicateShot(shot.id)}>⧉</button>
+                      {scene.shots.length > 1 && (
+                        <button style={{ ...iconBtn, color: "var(--accent)" }} title="Remove shot" onClick={() => removeShot(shot.id)}>×</button>
+                      )}
+                    </div>
                   </div>
                   {/* Dialogue */}
                   {shot.dialogue !== undefined && (
@@ -193,6 +219,14 @@ export function StoryStep() {
                   )}
                 </div>
               ))}
+
+              {/* Add scene after this one */}
+              <button
+                onClick={() => addScene(si)}
+                style={{ ...iconBtn, color: "var(--text-disabled)", fontSize: 11, marginTop: 8, padding: "4px 10px", border: "1px dashed var(--border-visible)" }}
+              >
+                + ADD SCENE
+              </button>
             </div>
           ))}
         </div>

@@ -38,6 +38,15 @@ interface ProjectActions {
   setShotVideo: (shotId: string, video: GeneratedVideo) => void;
   setShotVideoPromptJson: (shotId: string, json: VideoPromptJson) => void;
   setStyleReference: (image: GeneratedImage, analysis: string) => void;
+  addScene: (afterIndex: number) => void;
+  removeScene: (sceneId: string) => void;
+  reorderScene: (sceneId: string, newIndex: number) => void;
+  addShot: (sceneId: string, afterIndex: number) => void;
+  removeShot: (shotId: string) => void;
+  reorderShot: (shotId: string, newIndex: number) => void;
+  duplicateShot: (shotId: string) => void;
+  saveVersion: (label?: string) => Promise<void>;
+  restoreVersion: (versionId: string) => Promise<void>;
   setQualityTier: (tier: QualityTier) => void;
   setActiveScene: (id: string | null) => void;
   setActiveShot: (id: string | null) => void;
@@ -221,6 +230,178 @@ function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectSto
       set((state) => updateShot(state, shotId, { videoPromptJson: json })),
 
     setStyleReference: (image, analysis) => set({ styleReferenceImage: image, styleAnalysis: analysis }),
+
+    addScene: (afterIndex) =>
+      set((state) => {
+        if (!state.story) return {};
+        const newScene: import("@/types/movie").Scene = {
+          id: nanoid(),
+          orderIndex: afterIndex + 1,
+          heading: "NEW SCENE",
+          location: "Location",
+          timeOfDay: "DAY",
+          description: "Scene description",
+          characterIds: [],
+          shots: [
+            {
+              id: nanoid(),
+              sceneId: "",
+              orderIndex: 0,
+              shotType: "MS",
+              description: "Shot description",
+              duration: 4,
+              imageStatus: "idle",
+              keyframeStatus: "idle",
+              videoStatus: "idle",
+            },
+          ],
+          transitionTo: "cut",
+        };
+        newScene.shots[0].sceneId = newScene.id;
+        const scenes = [...state.story.scenes];
+        scenes.splice(afterIndex + 1, 0, newScene);
+        return { story: { ...state.story, scenes: scenes.map((sc, i) => ({ ...sc, orderIndex: i })) } };
+      }),
+
+    removeScene: (sceneId) =>
+      set((state) => {
+        if (!state.story || state.story.scenes.length <= 1) return {};
+        return {
+          story: {
+            ...state.story,
+            scenes: state.story.scenes
+              .filter((sc) => sc.id !== sceneId)
+              .map((sc, i) => ({ ...sc, orderIndex: i })),
+          },
+        };
+      }),
+
+    reorderScene: (sceneId, newIndex) =>
+      set((state) => {
+        if (!state.story) return {};
+        const scenes = [...state.story.scenes];
+        const oldIndex = scenes.findIndex((sc) => sc.id === sceneId);
+        if (oldIndex === -1) return {};
+        const [removed] = scenes.splice(oldIndex, 1);
+        scenes.splice(Math.max(0, Math.min(newIndex, scenes.length)), 0, removed);
+        return { story: { ...state.story, scenes: scenes.map((sc, i) => ({ ...sc, orderIndex: i })) } };
+      }),
+
+    addShot: (sceneId, afterIndex) =>
+      set((state) => {
+        if (!state.story) return {};
+        const newShot: import("@/types/movie").Shot = {
+          id: nanoid(),
+          sceneId,
+          orderIndex: afterIndex + 1,
+          shotType: "MS",
+          description: "Shot description",
+          duration: 4,
+          imageStatus: "idle",
+          keyframeStatus: "idle",
+          videoStatus: "idle",
+        };
+        return {
+          story: {
+            ...state.story,
+            scenes: state.story.scenes.map((sc) => {
+              if (sc.id !== sceneId) return sc;
+              const shots = [...sc.shots];
+              shots.splice(afterIndex + 1, 0, newShot);
+              return { ...sc, shots: shots.map((sh, i) => ({ ...sh, orderIndex: i })) };
+            }),
+          },
+        };
+      }),
+
+    removeShot: (shotId) =>
+      set((state) => {
+        if (!state.story) return {};
+        return {
+          story: {
+            ...state.story,
+            scenes: state.story.scenes.map((sc) => {
+              if (!sc.shots.some((sh) => sh.id === shotId)) return sc;
+              if (sc.shots.length <= 1) return sc; // keep at least 1 shot per scene
+              return {
+                ...sc,
+                shots: sc.shots
+                  .filter((sh) => sh.id !== shotId)
+                  .map((sh, i) => ({ ...sh, orderIndex: i })),
+              };
+            }),
+          },
+        };
+      }),
+
+    reorderShot: (shotId, newIndex) =>
+      set((state) => {
+        if (!state.story) return {};
+        return {
+          story: {
+            ...state.story,
+            scenes: state.story.scenes.map((sc) => {
+              const oldIndex = sc.shots.findIndex((sh) => sh.id === shotId);
+              if (oldIndex === -1) return sc;
+              const shots = [...sc.shots];
+              const [removed] = shots.splice(oldIndex, 1);
+              shots.splice(Math.max(0, Math.min(newIndex, shots.length)), 0, removed);
+              return { ...sc, shots: shots.map((sh, i) => ({ ...sh, orderIndex: i })) };
+            }),
+          },
+        };
+      }),
+
+    duplicateShot: (shotId) =>
+      set((state) => {
+        if (!state.story) return {};
+        return {
+          story: {
+            ...state.story,
+            scenes: state.story.scenes.map((sc) => {
+              const idx = sc.shots.findIndex((sh) => sh.id === shotId);
+              if (idx === -1) return sc;
+              const original = sc.shots[idx];
+              const duplicate: import("@/types/movie").Shot = {
+                ...original,
+                id: nanoid(),
+                imageStatus: "idle",
+                keyframeStatus: "idle",
+                videoStatus: "idle",
+                storyboardPanel: undefined,
+                keyframeImage: undefined,
+                videoClip: undefined,
+              };
+              const shots = [...sc.shots];
+              shots.splice(idx + 1, 0, duplicate);
+              return { ...sc, shots: shots.map((sh, i) => ({ ...sh, orderIndex: i })) };
+            }),
+          },
+        };
+      }),
+
+    saveVersion: async (label?: string) => {
+      const state = get();
+      if (!state.id || !state.story) return;
+      await fetch(`/api/projects/${state.id}/versions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ snapshot: state.story, label }),
+      });
+    },
+
+    restoreVersion: async (versionId: string) => {
+      const state = get();
+      if (!state.id) return;
+      const res = await fetch(`/api/projects/${state.id}/versions`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ versionId }),
+      });
+      if (!res.ok) return;
+      const { story } = await res.json() as { story: Story };
+      set({ story });
+    },
 
     setQualityTier: (tier) => set({ qualityTier: tier }),
     setActiveScene: (id) => set({ activeSceneId: id }),

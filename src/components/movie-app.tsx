@@ -9,6 +9,7 @@ import { CharactersStep } from "@/components/steps/characters-step";
 import { StoryboardStep } from "@/components/steps/storyboard-step";
 import { VideoStep } from "@/components/steps/video-step";
 import { useSyncProject } from "@/hooks/use-sync-project";
+import { VersionDrawer } from "@/components/ui/version-drawer";
 
 const STEP_KEYS: PipelineStep[] = ["prompt", "story", "characters", "storyboard", "video"];
 const STEP_NUMS: Record<PipelineStep, string> = {
@@ -92,6 +93,7 @@ export function MovieApp() {
         </nav>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <VersionDrawer />
           {/* Lang toggle */}
           <div
             style={{

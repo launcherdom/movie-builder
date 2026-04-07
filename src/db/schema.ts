@@ -28,5 +28,17 @@ export const generatedAssets = pgTable("generated_assets", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const projectVersions = pgTable("project_versions", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  versionNumber: integer("version_number").notNull(),
+  label: text("label"),
+  snapshotJson: jsonb("snapshot_json").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export type DbProject = typeof projects.$inferSelect;
 export type DbAsset = typeof generatedAssets.$inferSelect;
+export type DbVersion = typeof projectVersions.$inferSelect;
