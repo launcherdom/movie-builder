@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { useLangStore } from "@/stores/lang-store";
 import { VideoPromptEditor } from "@/components/video/video-prompt-editor";
+import { generationQueue } from "@/lib/generation/queue";
 import type { Shot, VideoPromptJson } from "@/types/movie";
 
 function buildDefaultVideoPromptJson(shot: Shot): VideoPromptJson {
@@ -287,47 +288,48 @@ export function VideoStep() {
   };
 
   const handleGenerateAll = async () => {
-    setGenerating(true, { current: 0, total: allShots.length });
-    for (const scene of story.scenes) {
-      for (const shot of scene.shots) {
-        if (shot.videoStatus === "done" || !shot.storyboardPanel) continue;
+    const store = useProjectStore.getState();
+    const allPairs = story.scenes.flatMap((sc) => sc.shots.map((sh) => ({ shot: sh, scene: sc })));
+    const toProcess = allPairs.filter(({ shot }) => shot.videoStatus !== "done" && shot.storyboardPanel);
+
+    setGenerating(true, { current: 0, total: toProcess.length * 2 });
+
+    // Phase 1: Generate all missing keyframes (max 3 concurrent via queue)
+    await Promise.all(
+      toProcess.map(({ shot, scene }) =>
+        generationQueue.enqueueImage(async () => {
+          if (shot.keyframeImage) return;
+          store.setShotKeyframeStatus(shot.id, "generating");
+          const res = await fetch("/api/keyframe/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              shots: [shot],
+              sceneDescription: scene.description,
+              characters: story.characters,
+              qualityTier,
+              visualStyle,
+              aspectRatio,
+            }),
+          });
+          if (!res.ok) { store.setShotKeyframeStatus(shot.id, "error"); return; }
+          const { results } = await res.json();
+          const kr = results?.[0];
+          if (kr?.keyframe) store.setShotKeyframe(shot.id, kr.keyframe, kr.prompt);
+          else store.setShotKeyframeStatus(shot.id, "error");
+        })
+      )
+    );
+
+    // Phase 2: Generate all videos (max 1 concurrent via queue)
+    for (const { shot } of toProcess) {
+      await generationQueue.enqueueVideo(async () => {
+        const freshShot = useProjectStore.getState().story?.scenes
+          .flatMap((sc) => sc.shots).find((sh) => sh.id === shot.id);
+        if (!freshShot?.keyframeImage) return;
+        const json = freshShot.videoPromptJson ?? buildDefaultVideoPromptJson(freshShot);
+        store.setShotVideoStatus(shot.id, "generating");
         try {
-          const store = useProjectStore.getState();
-
-          // Generate keyframe first if missing
-          if (!shot.keyframeImage) {
-            store.setShotKeyframeStatus(shot.id, "generating");
-            const kRes = await fetch("/api/keyframe/generate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                shots: [shot],
-                sceneDescription: scene.description,
-                characters: story.characters,
-                qualityTier,
-                visualStyle,
-                aspectRatio,
-              }),
-            });
-            if (!kRes.ok) continue;
-            const { results } = await kRes.json();
-            const kr = results?.[0];
-            if (!kr?.keyframe) continue;
-            store.setShotKeyframe(shot.id, kr.keyframe, kr.prompt);
-            // Refresh shot reference
-            const updatedShot = useProjectStore.getState().story?.scenes
-              .flatMap((sc) => sc.shots).find((sh) => sh.id === shot.id);
-            if (!updatedShot?.keyframeImage) continue;
-          }
-
-          // Get fresh shot with keyframe
-          const freshShot = useProjectStore.getState().story?.scenes
-            .flatMap((sc) => sc.shots).find((sh) => sh.id === shot.id);
-          if (!freshShot?.keyframeImage) continue;
-
-          const json = freshShot.videoPromptJson ?? buildDefaultVideoPromptJson(freshShot);
-          store.setShotVideoStatus(shot.id, "generating");
-
           const res = await fetch("/api/video/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -340,15 +342,16 @@ export function VideoStep() {
               aspectRatio,
             }),
           });
-          if (!res.ok) continue;
+          if (!res.ok) { store.setShotVideoStatus(shot.id, "error"); return; }
           const { requestId, endpoint } = await res.json();
           const video = await pollVideo(requestId, endpoint);
           store.setShotVideo(shot.id, video);
         } catch {
-          // continue with next shot
+          store.setShotVideoStatus(shot.id, "error");
         }
-      }
+      });
     }
+
     setGenerating(false);
   };
 

@@ -15,42 +15,55 @@ export function PanelGrid({ scene, sceneIndex, aspectRatio }: PanelGridProps) {
   const { story, qualityTier, setShotImageStatus, setShotPanel, id: projectId } = useProjectStore();
   const [generating, setGenerating] = useState(false);
 
+  // Generate shots sequentially within the scene, each referencing the previous panel
   const handleGenerateScene = async () => {
     setGenerating(true);
-    scene.shots.forEach((sh) => setShotImageStatus(sh.id, "generating"));
 
-    try {
-      const res = await fetch("/api/storyboard/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          shots: scene.shots,
-          sceneDescription: scene.description,
-          characters: story?.characters ?? [],
-          qualityTier,
-          visualStyle: useProjectStore.getState().visualStyle,
-          aspectRatio,
-        }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const { results } = await res.json();
-      results.forEach(({ shotId, panel, prompt }: { shotId: string; panel: { url: string; width: number; height: number } | null; prompt: string }) => {
-        if (panel) {
-          setShotPanel(shotId, panel, prompt);
+    let previousPanelUrl: string | undefined;
+    const characters = story?.characters ?? [];
+    const visualStyle = useProjectStore.getState().visualStyle;
+
+    for (const shot of scene.shots) {
+      setShotImageStatus(shot.id, "generating");
+      try {
+        const res = await fetch("/api/storyboard/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            shots: [shot],
+            sceneDescription: scene.description,
+            characters,
+            qualityTier,
+            visualStyle,
+            aspectRatio,
+            ...(previousPanelUrl && { referenceImageUrl: previousPanelUrl }),
+          }),
+        });
+        if (!res.ok) {
+          setShotImageStatus(shot.id, "error");
+          continue;
+        }
+        const { results } = await res.json() as {
+          results: Array<{ shotId: string; panel: { url: string; width: number; height: number } | null; prompt: string }>
+        };
+        const result = results[0];
+        if (result?.panel) {
+          setShotPanel(result.shotId, result.panel, result.prompt);
+          previousPanelUrl = result.panel.url;
           if (projectId) {
-            persistAsset({ url: panel.url, projectId, shotId, assetType: "storyboard" })
-              .then((blobUrl) => { if (blobUrl !== panel.url) setShotPanel(shotId, { ...panel, url: blobUrl }, prompt); })
+            persistAsset({ url: result.panel.url, projectId, shotId: result.shotId, assetType: "storyboard" })
+              .then((blobUrl) => { if (blobUrl !== result.panel!.url) setShotPanel(result.shotId, { ...result.panel!, url: blobUrl }, result.prompt); })
               .catch(() => {});
           }
         } else {
-          setShotImageStatus(shotId, "error");
+          setShotImageStatus(shot.id, "error");
         }
-      });
-    } catch {
-      scene.shots.forEach((sh) => setShotImageStatus(sh.id, "error"));
-    } finally {
-      setGenerating(false);
+      } catch {
+        setShotImageStatus(shot.id, "error");
+      }
     }
+
+    setGenerating(false);
   };
 
   return (

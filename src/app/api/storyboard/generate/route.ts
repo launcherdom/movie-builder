@@ -21,7 +21,7 @@ function buildPanelPrompt(
 
 export async function POST(request: NextRequest) {
   try {
-    const { shots, sceneDescription, characters, qualityTier, visualStyle, aspectRatio } =
+    const { shots, sceneDescription, characters, qualityTier, visualStyle, aspectRatio, referenceImageUrl } =
       await request.json() as {
         shots: Shot[];
         sceneDescription: string;
@@ -29,12 +29,18 @@ export async function POST(request: NextRequest) {
         qualityTier: QualityTier;
         visualStyle: string;
         aspectRatio: string;
+        referenceImageUrl?: string; // previous shot's panel for visual continuity
       };
 
     const model = getImageModel(qualityTier);
-    const referenceImages = characters
+
+    // Build reference image list: continuity ref first, then character sheets
+    const characterRefs = characters
       .filter((c) => c.characterSheet?.url)
       .map((c) => c.characterSheet!.url);
+    const allRefs = referenceImageUrl
+      ? [referenceImageUrl, ...characterRefs]
+      : characterRefs;
 
     const results = await Promise.all(
       shots.map(async (shot) => {
@@ -46,8 +52,8 @@ export async function POST(request: NextRequest) {
           output_format: "png",
           resolution: "1K",
         };
-        if (referenceImages.length > 0) {
-          input.image_urls = referenceImages;
+        if (allRefs.length > 0) {
+          input.image_urls = allRefs;
         }
 
         const result = await fal.subscribe(model.endpoint, { input });

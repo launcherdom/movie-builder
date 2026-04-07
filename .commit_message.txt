@@ -1,1 +1,1 @@
-스토리 생성 토큰 한도 제거 - beta.messages output-128k로 16000 토큰 지원
+Phase 0 완료 - DB 동기화, 프로젝트 목록, Vercel Blob 에셋 영구 저장 구현
