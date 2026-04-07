@@ -1,1 +1,1 @@
-Phase 0 완료 - DB 동기화, 프로젝트 목록, Vercel Blob 에셋 영구 저장 구현
+Phase 5B - CapCut 드래프트 내보내기 구현 (ZIP: draft_content.json + 에셋 다운로드)

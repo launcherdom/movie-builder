@@ -44,6 +44,7 @@ export function PromptStep() {
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("9:16");
   const [visualStyle, setVisualStyle] = useState<VisualStyle>("realistic");
   const [generating, setGenerating] = useState(false);
+  const [generatingMessage, setGeneratingMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [styleFile, setStyleFile] = useState<File | null>(null);
   const [stylePreview, setStylePreview] = useState<string | null>(null);
@@ -90,14 +91,38 @@ export function PromptStep() {
         body: JSON.stringify({ id: projectId, concept, genre, tone, targetDuration: duration, aspectRatio, visualStyle, qualityTier: "draft" }),
       });
 
+      // Consume SSE stream from story generation
       const res = await fetch("/api/story/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ concept, genre, tone, targetDuration: duration, aspectRatio, visualStyle }),
       });
       if (!res.ok) throw new Error(await res.text());
-      const { story } = await res.json();
-      useProjectStore.getState().setStory(story);
+
+      const reader = res.body!.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const evt = JSON.parse(line.slice(6)) as { status: string; message?: string; story?: unknown; error?: string };
+          if (evt.status === "thinking" && evt.message) {
+            setGeneratingMessage(evt.message);
+          } else if (evt.status === "done" && evt.story) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            useProjectStore.getState().setStory(evt.story as any);
+          } else if (evt.status === "error") {
+            throw new Error(evt.error ?? "Story generation failed");
+          }
+        }
+      }
+
       router.push(`/project/${projectId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : t.prompt.errorFail);
@@ -277,7 +302,7 @@ export function PromptStep() {
           minHeight: 40,
         }}
       >
-        {generating ? t.prompt.generating : t.prompt.generate}
+        {generating ? (generatingMessage || t.prompt.generating) : t.prompt.generate}
       </button>
     </div>
   );
