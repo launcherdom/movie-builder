@@ -1,10 +1,7 @@
-import { fal } from "@fal-ai/client";
 import { NextRequest } from "next/server";
 import type { QualityTier, Character, Shot, VisualStyle } from "@/types/movie";
-import { getImageModel } from "@/lib/fal/models";
+import { getImageProvider } from "@/lib/providers/registry";
 import { buildStoryboardPrompt, serializeImagePrompt } from "@/lib/generation/prompt-builder";
-
-fal.config({ credentials: process.env.FAL_KEY });
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +17,7 @@ export async function POST(request: NextRequest) {
         styleAnalysis?: string;
       };
 
-    const model = getImageModel(qualityTier);
+    const provider = getImageProvider(qualityTier);
     const scene = { description: sceneDescription };
 
     const characterRefs = characters
@@ -35,25 +32,18 @@ export async function POST(request: NextRequest) {
         const structured = buildStoryboardPrompt(shot, scene, characters, visualStyle, styleAnalysis);
         const prompt = serializeImagePrompt(structured);
 
-        const input: Record<string, unknown> = {
+        const images = await provider.generateImages({
           prompt,
           num_images: 1,
           aspect_ratio: aspectRatio,
           output_format: "png",
           resolution: "1K",
-        };
-        if (allRefs.length > 0) {
-          input.image_urls = allRefs;
-        }
-
-        const result = await fal.subscribe(model.endpoint, { input });
-        const data = result.data as { images: Array<{ url: string; width: number; height: number }> };
+          image_urls: allRefs.length > 0 ? allRefs : undefined,
+        });
 
         return {
           shotId: shot.id,
-          panel: data.images?.[0]
-            ? { url: data.images[0].url, width: data.images[0].width, height: data.images[0].height }
-            : null,
+          panel: images[0] ?? null,
           prompt,
         };
       })

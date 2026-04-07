@@ -1,9 +1,7 @@
-import { fal } from "@fal-ai/client";
 import { NextRequest } from "next/server";
 import type { QualityTier, VideoPromptJson } from "@/types/movie";
-import { getVideoModel } from "@/lib/fal/models";
-
-fal.config({ credentials: process.env.FAL_KEY });
+import { getVideoProvider } from "@/lib/providers/registry";
+import { VIDEO_MODELS } from "@/lib/fal/models";
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,19 +19,19 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "imageUrl and videoPromptJson are required" }, { status: 400 });
     }
 
-    const model = getVideoModel(qualityTier);
+    const provider = getVideoProvider(qualityTier);
+    const model = VIDEO_MODELS[qualityTier];
     const prompt = JSON.stringify(videoPromptJson);
 
-    const { request_id } = await fal.queue.submit(model.endpoint, {
-      input: {
-        prompt,
-        image_url: imageUrl,
-        duration: Math.min(duration, model.maxDuration),
-        aspect_ratio: aspectRatio ?? "9:16",
-      },
+    const { requestId, endpoint } = await provider.submitVideo({
+      prompt,
+      image_url: imageUrl,
+      duration,
+      maxDuration: model.maxDuration,
+      aspect_ratio: aspectRatio ?? "9:16",
     });
 
-    return Response.json({ shotId, requestId: request_id, endpoint: model.endpoint });
+    return Response.json({ shotId, requestId, endpoint });
   } catch (error) {
     console.error("Video generation error:", error);
     return Response.json(

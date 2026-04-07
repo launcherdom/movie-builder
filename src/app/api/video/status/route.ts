@@ -1,7 +1,5 @@
-import { fal } from "@fal-ai/client";
 import { NextRequest } from "next/server";
-
-fal.config({ credentials: process.env.FAL_KEY });
+import { getVideoProviderByEndpoint } from "@/lib/providers/registry";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -13,34 +11,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const status = await fal.queue.status(endpoint, {
-      requestId,
-      logs: false,
-    });
-
-    if (status.status === "COMPLETED") {
-      const result = await fal.queue.result(endpoint, { requestId });
-      const data = result.data as {
-        video?: { url: string; width: number; height: number; duration: number };
-      };
-
-      if (!data.video) {
-        return Response.json({ status: "error", error: "No video in result" });
-      }
-
-      return Response.json({
-        status: "COMPLETED",
-        video: {
-          url: data.video.url,
-          duration: data.video.duration,
-          width: data.video.width,
-          height: data.video.height,
-          falRequestId: requestId,
-        },
-      });
-    }
-
-    return Response.json({ status: status.status });
+    const provider = getVideoProviderByEndpoint(endpoint);
+    const result = await provider.getStatus(requestId);
+    return Response.json(result);
   } catch (error) {
     console.error("Status check error:", error);
     return Response.json(
