@@ -55,8 +55,16 @@ export function PromptStep() {
     setGenerating(true);
 
     initProject({ concept, genre, tone, targetDuration: duration, aspectRatio, visualStyle, qualityTier: "draft" });
+    const projectId = useProjectStore.getState().id;
 
     try {
+      // Persist project to DB before generating story
+      await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: projectId, concept, genre, tone, targetDuration: duration, aspectRatio, visualStyle, qualityTier: "draft" }),
+      });
+
       const res = await fetch("/api/story/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,7 +73,6 @@ export function PromptStep() {
       if (!res.ok) throw new Error(await res.text());
       const { story } = await res.json();
       useProjectStore.getState().setStory(story);
-      const projectId = useProjectStore.getState().id;
       router.push(`/project/${projectId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : t.prompt.errorFail);

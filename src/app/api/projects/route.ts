@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       qualityTier?: QualityTier;
     };
 
-    const id = nanoid();
+    const id = (body as { id?: string }).id ?? nanoid();
     await db.insert(projects).values({
       id,
       concept: body.concept,

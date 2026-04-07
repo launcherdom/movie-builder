@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
+import { persistAsset } from "@/lib/assets/persist";
 import type { Scene } from "@/types/movie";
 import { PanelCard } from "./panel-card";
 
@@ -11,7 +12,7 @@ interface PanelGridProps {
 }
 
 export function PanelGrid({ scene, sceneIndex, aspectRatio }: PanelGridProps) {
-  const { story, qualityTier, setShotImageStatus, setShotPanel } = useProjectStore();
+  const { story, qualityTier, setShotImageStatus, setShotPanel, id: projectId } = useProjectStore();
   const [generating, setGenerating] = useState(false);
 
   const handleGenerateScene = async () => {
@@ -34,8 +35,16 @@ export function PanelGrid({ scene, sceneIndex, aspectRatio }: PanelGridProps) {
       if (!res.ok) throw new Error(await res.text());
       const { results } = await res.json();
       results.forEach(({ shotId, panel, prompt }: { shotId: string; panel: { url: string; width: number; height: number } | null; prompt: string }) => {
-        if (panel) setShotPanel(shotId, panel, prompt);
-        else setShotImageStatus(shotId, "error");
+        if (panel) {
+          setShotPanel(shotId, panel, prompt);
+          if (projectId) {
+            persistAsset({ url: panel.url, projectId, shotId, assetType: "storyboard" })
+              .then((blobUrl) => { if (blobUrl !== panel.url) setShotPanel(shotId, { ...panel, url: blobUrl }, prompt); })
+              .catch(() => {});
+          }
+        } else {
+          setShotImageStatus(shotId, "error");
+        }
       });
     } catch {
       scene.shots.forEach((sh) => setShotImageStatus(sh.id, "error"));

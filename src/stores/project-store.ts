@@ -14,11 +14,17 @@ import type {
   GeneratedVideo,
   VideoPromptJson,
   GenerationStatus,
+  Genre,
+  Tone,
+  AspectRatio,
+  VisualStyle,
 } from "@/types/movie";
 
 interface ProjectActions {
   setCurrentStep: (step: PipelineStep) => void;
   initProject: (partial: Omit<Project, "id" | "story" | "currentStep" | "createdAt" | "updatedAt">) => void;
+  loadProject: (id: string) => Promise<void>;
+  saveProject: () => Promise<void>;
   setStory: (story: Story) => void;
   updateCharacter: (id: string, patch: Partial<Character>) => void;
   updateCharacterSheet: (id: string, sheet: GeneratedImage) => void;
@@ -72,7 +78,7 @@ function updateShot(state: ProjectState, shotId: string, patch: Partial<Shot>): 
   };
 }
 
-function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectStore) => Partial<ProjectStore>)) => void): ProjectActions {
+function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectStore) => Partial<ProjectStore>)) => void, get: () => ProjectStore): ProjectActions {
   return {
     setCurrentStep: (step) => set({ currentStep: step }),
 
@@ -84,6 +90,65 @@ function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectSto
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }),
+
+    loadProject: async (id: string) => {
+      const res = await fetch(`/api/projects/${id}`);
+      if (!res.ok) return;
+      const { project } = await res.json() as {
+        project: {
+          id: string;
+          concept: string;
+          genre: Genre;
+          tone: Tone;
+          targetDuration: number;
+          aspectRatio: AspectRatio;
+          visualStyle: VisualStyle;
+          qualityTier: QualityTier;
+          storyJson: Story | null;
+          currentStep: PipelineStep;
+          createdAt: string;
+          updatedAt: string;
+        }
+      };
+      set({
+        id: project.id,
+        concept: project.concept,
+        genre: project.genre,
+        tone: project.tone,
+        targetDuration: project.targetDuration,
+        aspectRatio: project.aspectRatio,
+        visualStyle: project.visualStyle,
+        qualityTier: project.qualityTier,
+        story: project.storyJson ?? null,
+        currentStep: project.currentStep,
+        createdAt: typeof project.createdAt === "string"
+          ? project.createdAt
+          : new Date(project.createdAt).toISOString(),
+        updatedAt: typeof project.updatedAt === "string"
+          ? project.updatedAt
+          : new Date(project.updatedAt).toISOString(),
+      });
+    },
+
+    saveProject: async () => {
+      const state = get();
+      if (!state.id) return;
+      await fetch(`/api/projects/${state.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          concept: state.concept,
+          genre: state.genre,
+          tone: state.tone,
+          targetDuration: state.targetDuration,
+          aspectRatio: state.aspectRatio,
+          visualStyle: state.visualStyle,
+          qualityTier: state.qualityTier,
+          story: state.story,
+          currentStep: state.currentStep,
+        }),
+      });
+    },
 
     setStory: (story) => set({ story, currentStep: "story" }),
 
@@ -168,13 +233,13 @@ function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectSto
 }
 
 export function createProjectStore() {
-  return createStore<ProjectStore>()((set) => ({
+  return createStore<ProjectStore>()((set, get) => ({
     ...initialState,
-    ...buildActions(set),
+    ...buildActions(set, get),
   }));
 }
 
-export const useProjectStore = create<ProjectStore>()((set) => ({
+export const useProjectStore = create<ProjectStore>()((set, get) => ({
   ...initialState,
-  ...buildActions(set),
+  ...buildActions(set, get),
 }));

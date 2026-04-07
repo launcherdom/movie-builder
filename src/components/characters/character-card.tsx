@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
+import { persistAsset } from "@/lib/assets/persist";
 import type { Character } from "@/types/movie";
 
 const labelStyle: React.CSSProperties = {
@@ -31,7 +32,7 @@ interface CharacterCardProps {
 }
 
 export function CharacterCard({ character, index }: CharacterCardProps) {
-  const { updateCharacter, updateCharacterSheet } = useProjectStore();
+  const { updateCharacter, updateCharacterSheet, id: projectId } = useProjectStore();
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,8 +46,14 @@ export function CharacterCard({ character, index }: CharacterCardProps) {
         body: JSON.stringify({ character }),
       });
       if (!res.ok) throw new Error(await res.text());
-      const { characterSheet } = await res.json();
+      const { characterSheet } = await res.json() as { characterSheet: { url: string; width: number; height: number } };
       updateCharacterSheet(character.id, characterSheet);
+      // Persist to Vercel Blob in background
+      if (projectId) {
+        persistAsset({ url: characterSheet.url, projectId, shotId: character.id, assetType: "character_sheet" })
+          .then((blobUrl) => { if (blobUrl !== characterSheet.url) updateCharacterSheet(character.id, { ...characterSheet, url: blobUrl }); })
+          .catch(() => {});
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Sheet generation failed");
     } finally {

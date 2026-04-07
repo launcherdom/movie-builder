@@ -8,6 +8,7 @@ import { StoryStep } from "@/components/steps/story-step";
 import { CharactersStep } from "@/components/steps/characters-step";
 import { StoryboardStep } from "@/components/steps/storyboard-step";
 import { VideoStep } from "@/components/steps/video-step";
+import { useSyncProject } from "@/hooks/use-sync-project";
 
 const STEP_KEYS: PipelineStep[] = ["prompt", "story", "characters", "storyboard", "video"];
 const STEP_NUMS: Record<PipelineStep, string> = {
@@ -28,6 +29,7 @@ function canGoToStep(current: PipelineStep, target: PipelineStep, hasStory: bool
 export function MovieApp() {
   const { currentStep, story, setCurrentStep } = useProjectStore();
   const { locale, t, setLocale } = useLangStore();
+  useSyncProject();
 
   const hasStory = !!story;
 
