@@ -41,12 +41,18 @@ export class FalVideoProvider implements VideoProvider {
   constructor(public readonly endpoint: string) {}
 
   async submitVideo(params: VideoSubmitParams): Promise<VideoSubmitResult> {
+    const clampedDuration = Math.min(Math.round(params.duration), params.maxDuration);
+    // Seedance-family models take duration as a string enum ("auto" | "4".."15")
+    const durationValue = String(clampedDuration) as string;
+
     const { request_id } = await fal.queue.submit(this.endpoint, {
       input: {
         prompt: params.prompt,
         image_url: params.image_url,
-        duration: Math.min(params.duration, params.maxDuration),
+        duration: durationValue,
         aspect_ratio: params.aspect_ratio ?? "9:16",
+        ...(params.resolution && { resolution: params.resolution }),
+        ...(params.generate_audio !== undefined && { generate_audio: params.generate_audio }),
       },
     });
 
@@ -59,10 +65,10 @@ export class FalVideoProvider implements VideoProvider {
     if (status.status === "COMPLETED") {
       const result = await fal.queue.result(this.endpoint, { requestId });
       const data = result.data as {
-        video?: { url: string; width: number; height: number; duration: number };
+        video?: { url: string; width?: number; height?: number; duration?: number; file_size?: number; content_type?: string };
       };
 
-      if (!data.video) {
+      if (!data.video?.url) {
         return { status: "error", error: "No video in result" };
       }
 
@@ -70,9 +76,9 @@ export class FalVideoProvider implements VideoProvider {
         status: "COMPLETED",
         video: {
           url: data.video.url,
-          width: data.video.width,
-          height: data.video.height,
-          duration: data.video.duration,
+          width: data.video.width ?? 0,
+          height: data.video.height ?? 0,
+          duration: data.video.duration ?? 0,
           falRequestId: requestId,
         },
       };

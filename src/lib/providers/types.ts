@@ -20,9 +20,11 @@ export interface ImageProvider {
 export interface VideoSubmitParams {
   prompt: string;
   image_url: string;
-  duration: number;
+  duration: number;       // seconds (numeric from store)
   aspect_ratio?: string;
   maxDuration: number;
+  resolution?: string;    // e.g. "720p" | "480p"
+  generate_audio?: boolean;
 }
 
 export interface VideoSubmitResult {
