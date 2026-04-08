@@ -1,1 +1,1 @@
-Phase 5B - CapCut 드래프트 내보내기 구현 (ZIP: draft_content.json + 에셋 다운로드)
+영상 생성 모델을 bytedance/seedance-2.0/fast/image-to-video로 교체
