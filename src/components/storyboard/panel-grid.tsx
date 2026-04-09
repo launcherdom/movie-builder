@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
-import { persistAsset } from "@/lib/assets/persist";
 import type { Scene } from "@/types/movie";
 import { PanelCard } from "./panel-card";
 
@@ -12,93 +11,141 @@ interface PanelGridProps {
 }
 
 export function PanelGrid({ scene, sceneIndex, aspectRatio }: PanelGridProps) {
-  const { story, qualityTier, setShotImageStatus, setShotPanel, id: projectId } = useProjectStore();
+  const { story, qualityTier, setShotImageStatus, setShotPanel, id: projectId, visualStyle } = useProjectStore();
   const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Generate shots sequentially within the scene, each referencing the previous panel
+  const pendingShots = scene.shots.filter((sh) => sh.imageStatus !== "done");
+  const doneShots = scene.shots.filter((sh) => sh.imageStatus === "done").length;
+
+  // Generate all shots in this scene as one grid image → split into panels
   const handleGenerateScene = async () => {
+    if (pendingShots.length === 0) return;
     setGenerating(true);
+    setError(null);
 
-    let previousPanelUrl: string | undefined;
     const characters = story?.characters ?? [];
-    const visualStyle = useProjectStore.getState().visualStyle;
+    const styleAnalysis = useProjectStore.getState().styleAnalysis;
 
-    for (const shot of scene.shots) {
-      setShotImageStatus(shot.id, "generating");
-      try {
-        const res = await fetch("/api/storyboard/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            shots: [shot],
-            sceneDescription: scene.description,
-            characters,
-            qualityTier,
-            visualStyle,
-            aspectRatio,
-            ...(previousPanelUrl && { referenceImageUrl: previousPanelUrl }),
-          }),
-        });
-        if (!res.ok) {
-          setShotImageStatus(shot.id, "error");
-          continue;
-        }
-        const { results } = await res.json() as {
-          results: Array<{ shotId: string; panel: { url: string; width: number; height: number } | null; prompt: string }>
-        };
-        const result = results[0];
-        if (result?.panel) {
-          setShotPanel(result.shotId, result.panel, result.prompt);
-          previousPanelUrl = result.panel.url;
-          if (projectId) {
-            persistAsset({ url: result.panel.url, projectId, shotId: result.shotId, assetType: "storyboard" })
-              .then((blobUrl) => { if (blobUrl !== result.panel!.url) setShotPanel(result.shotId, { ...result.panel!, url: blobUrl }, result.prompt); })
-              .catch(() => {});
-          }
-        } else {
-          setShotImageStatus(shot.id, "error");
-        }
-      } catch {
-        setShotImageStatus(shot.id, "error");
+    // Mark all pending shots as generating
+    pendingShots.forEach((sh) => setShotImageStatus(sh.id, "generating"));
+
+    try {
+      const res = await fetch("/api/storyboard/grid-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scene: { ...scene, shots: pendingShots },
+          characters,
+          qualityTier,
+          visualStyle,
+          aspectRatio,
+          projectId,
+          styleAnalysis,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        pendingShots.forEach((sh) => setShotImageStatus(sh.id, "error"));
+        setError(body.error ?? "Generation failed");
+        return;
       }
-    }
 
-    setGenerating(false);
+      const { results } = await res.json() as {
+        results: Array<{ shotId: string; panel: { url: string; width: number; height: number } | null; prompt: string }>
+      };
+
+      for (const result of results) {
+        if (result.panel) {
+          setShotPanel(result.shotId, result.panel, result.prompt);
+        } else {
+          setShotImageStatus(result.shotId, "error");
+        }
+      }
+    } catch (e) {
+      pendingShots.forEach((sh) => setShotImageStatus(sh.id, "error"));
+      setError(e instanceof Error ? e.message : "Generation failed");
+    } finally {
+      setGenerating(false);
+    }
   };
+
+  const isSceneGenerating = scene.shots.some((sh) => sh.imageStatus === "generating");
 
   return (
     <div style={{ marginBottom: 40 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, paddingBottom: 8, borderBottom: "1px solid var(--border)" }}>
-        <div>
+      {/* Scene header */}
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 12,
+        paddingBottom: 8,
+        borderBottom: "1px solid var(--border)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, letterSpacing: "0.08em", color: "var(--accent)" }}>
             SCENE {String(sceneIndex + 1).padStart(2, "0")} — {scene.heading}
           </span>
           {scene.characterIds.length > 0 && (
-            <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-disabled)", marginLeft: 16 }}>
+            <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-disabled)" }}>
               · {scene.characterIds.map((id) => story?.characters.find((c) => c.id === id)?.name).filter(Boolean).join(", ")}
             </span>
           )}
+          {/* Shot progress dots */}
+          <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+            {scene.shots.map((sh) => (
+              <div key={sh.id} style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: sh.imageStatus === "done"
+                  ? "var(--success)"
+                  : sh.imageStatus === "generating"
+                    ? "var(--text-secondary)"
+                    : sh.imageStatus === "error"
+                      ? "var(--accent)"
+                      : "var(--border)",
+              }} />
+            ))}
+            <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, color: "var(--text-disabled)", marginLeft: 4 }}>
+              {doneShots}/{scene.shots.length}
+            </span>
+          </div>
         </div>
+
         <button
           onClick={handleGenerateScene}
-          disabled={generating}
+          disabled={generating || isSceneGenerating || pendingShots.length === 0}
           style={{
             fontFamily: "var(--font-space-mono), monospace",
             fontSize: 11,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
             background: "transparent",
-            border: "1px solid var(--border-visible)",
+            border: `1px solid ${pendingShots.length === 0 ? "var(--border)" : "var(--border-visible)"}`,
             borderRadius: "var(--radius-btn)",
-            color: generating ? "var(--text-disabled)" : "var(--text-primary)",
+            color: (generating || isSceneGenerating || pendingShots.length === 0) ? "var(--text-disabled)" : "var(--text-primary)",
             padding: "6px 16px",
-            cursor: generating ? "not-allowed" : "pointer",
+            cursor: (generating || isSceneGenerating || pendingShots.length === 0) ? "not-allowed" : "pointer",
           }}
         >
-          {generating ? "[GENERATING...]" : "GENERATE SCENE"}
+          {generating || isSceneGenerating
+            ? `[GENERATING ${scene.shots.length} SHOTS...]`
+            : pendingShots.length === 0
+              ? "✓ DONE"
+              : `GENERATE ${pendingShots.length} SHOT${pendingShots.length > 1 ? "S" : ""}`}
         </button>
       </div>
 
+      {error && (
+        <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, color: "var(--accent)", marginBottom: 8 }}>
+          [ERROR: {error}]
+        </p>
+      )}
+
+      {/* Shot panels */}
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         {scene.shots.map((shot) => (
           <PanelCard key={shot.id} shot={shot} aspectRatio={aspectRatio} />

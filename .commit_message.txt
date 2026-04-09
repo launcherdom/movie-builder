@@ -1,1 +1,1 @@
-fix: BLOB_READ_WRITE_TOKEN 없는 로컬 환경에서 그리드 분할 이미지 base64 fallback
+UI: 씬 단위 그리드 생성 반영 - GENERATE SCENE 버튼 그리드 API 전환, 샷 진행 점 표시
