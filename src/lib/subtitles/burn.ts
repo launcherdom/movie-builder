@@ -45,16 +45,18 @@ export async function burnSubtitles(
     // Write SRT
     await fs.writeFile(srtPath, srtContent, "utf-8");
 
-    // Force style string for ASS subtitles filter
+    // YouTube-style: white text on semi-transparent black box
     const forceStyle = [
       `FontName=${fontName}`,
       `FontSize=${fontSize}`,
       `PrimaryColour=${primaryColor}`,
-      `OutlineColour=${outlineColor}`,
-      `Outline=${outline}`,
-      "Bold=1",
-      "Alignment=2",  // center-bottom
-      "MarginV=30",
+      `BackColour=&H99000000`,   // semi-transparent black background
+      `BorderStyle=3`,           // opaque box (no outline, background instead)
+      `Outline=0`,
+      `Shadow=0`,
+      "Bold=0",
+      "Alignment=2",             // center-bottom
+      "MarginV=40",
     ].join(",");
 
     // Escape path for FFmpeg filter (handle colons on Windows if needed)
