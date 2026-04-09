@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Story, Genre, Tone, AspectRatio, VisualStyle } from "@/types/movie";
+import type { Story, Genre, Tone, AspectRatio, VisualStyle, VideoPromptJson } from "@/types/movie";
 import { nanoid } from "nanoid";
 
 export const SCREENPLAY_TOOL: Anthropic.Tool = {
@@ -311,4 +311,44 @@ export function parseStoryResponse(response: ClaudeResponse): Story {
     scenes,
     totalDuration: raw.totalDuration as number,
   };
+}
+
+// ─── Video Prompt Generation ────────────────────────────────────────────────
+
+export function buildVideoPromptSystemPrompt(story: Story, visualStyle: string, aspectRatio: string): string {
+  const charDescriptions = story.characters
+    .map((c) => `- ${c.name} (${c.age ?? "?"}, ${c.gender ?? "?"}): ${c.description}`)
+    .join("\n");
+
+  return `You are a cinematographer writing AI video generation prompts for Seedance 2.0.
+
+Story: "${story.title}" — ${story.logline}
+Visual style: ${visualStyle}, aspect ratio: ${aspectRatio}.
+
+Characters:
+${charDescriptions}
+
+For EACH shot, write a rich, immersive cinematic prompt that:
+1. Opens with camera framing (e.g. "A tight close-up", "An extreme wide shot", "A low-angle shot")
+2. Describes the setting with vivid sensory details (lighting, atmosphere, textures)
+3. Names characters with their exact visual anchors (hair, clothing, distinguishing features)
+4. Describes action in cinematic present tense with motion details
+5. Includes technical cinematography (film grain, lens characteristics, color grading)
+6. For dialogue shots: describes mouth movement and emotional expression
+
+Write prompts for AI video generation — they must be concrete, visual, and motion-focused.
+Avoid abstract concepts. Describe what the camera SEES, not what characters FEEL.
+
+Use the create_video_prompts tool to output all prompts.`;
+}
+
+export function parseVideoPromptsResponse(
+  response: ClaudeResponse
+): Array<{ shotId: string; prompt: VideoPromptJson }> {
+  const toolBlock = response.content.find(
+    (b) => b.type === "tool_use" && b.name === "create_video_prompts"
+  );
+  if (!toolBlock || !toolBlock.input) return [];
+  const raw = toolBlock.input as { prompts: Array<{ shotId: string; prompt: VideoPromptJson }> };
+  return raw.prompts ?? [];
 }

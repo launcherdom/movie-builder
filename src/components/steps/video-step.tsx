@@ -274,8 +274,10 @@ function SceneVideoCard({
 }
 
 export function VideoStep() {
-  const { story, setGenerating, qualityTier, aspectRatio } = useProjectStore();
+  const { story, setGenerating, qualityTier, aspectRatio, visualStyle, setShotVideoPromptJson } = useProjectStore();
   const { t } = useLangStore();
+  const [generatingPrompts, setGeneratingPrompts] = useState(false);
+  const [promptsError, setPromptsError] = useState<string | null>(null);
   const [assembling, setAssembling] = useState(false);
   const [assembledUrl, setAssembledUrl] = useState<string | null>(null);
   const [assembleError, setAssembleError] = useState<string | null>(null);
@@ -393,6 +395,29 @@ export function VideoStep() {
     }
   };
 
+  const handleGeneratePrompts = async () => {
+    setGeneratingPrompts(true);
+    setPromptsError(null);
+    try {
+      const res = await fetch("/api/video/prompts/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ story, visualStyle, aspectRatio }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { prompts } = await res.json() as {
+        prompts: Array<{ shotId: string; prompt: import("@/types/movie").VideoPromptJson }>;
+      };
+      for (const { shotId, prompt } of prompts) {
+        setShotVideoPromptJson(shotId, prompt);
+      }
+    } catch (e) {
+      setPromptsError(e instanceof Error ? e.message : "Prompt generation failed");
+    } finally {
+      setGeneratingPrompts(false);
+    }
+  };
+
   const handleGenerateAll = async () => {
     const store = useProjectStore.getState();
     const toProcess = story.scenes.filter(
@@ -476,6 +501,25 @@ export function VideoStep() {
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <CostBadge scope="video" />
           <button
+            onClick={handleGeneratePrompts}
+            disabled={generatingPrompts}
+            title="Use Claude to generate rich cinematic prompts for all shots"
+            style={{
+              fontFamily: "var(--font-space-mono), monospace",
+              fontSize: 11,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              background: "transparent",
+              border: "1px solid var(--border-visible)",
+              borderRadius: "var(--radius-btn)",
+              color: generatingPrompts ? "var(--text-disabled)" : "var(--text-secondary)",
+              padding: "8px 20px",
+              cursor: generatingPrompts ? "not-allowed" : "pointer",
+            }}
+          >
+            {generatingPrompts ? "[WRITING PROMPTS...]" : "✦ WRITE PROMPTS"}
+          </button>
+          <button
             onClick={handleGenerateAll}
             style={{
               fontFamily: "var(--font-space-mono), monospace",
@@ -494,6 +538,12 @@ export function VideoStep() {
           </button>
         </div>
       </div>
+
+      {promptsError && (
+        <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--accent)", marginBottom: 16 }}>
+          [PROMPTS ERROR: {promptsError}]
+        </p>
+      )}
 
       {story.scenes.map((scene, si) => (
         <SceneVideoCard key={scene.id} scene={scene} sceneIndex={si} />
