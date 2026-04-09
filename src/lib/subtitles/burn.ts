@@ -12,6 +12,47 @@ export interface BurnOptions {
   fontSize?: number;
 }
 
+function srtTimestampToAss(ts: string): string {
+  // SRT: 00:00:01,500  →  ASS: 0:00:01.50
+  const clean = ts.trim().replace(",", ".");
+  const [hms, ms2] = clean.split(".");
+  const centiseconds = Math.round(Number("0." + (ms2 ?? "0")) * 100).toString().padStart(2, "0");
+  return `${hms}.${centiseconds}`;
+}
+
+function srtToAss(srtContent: string, fontName: string, fontSize: number): string {
+  // YouTube-style: white text, semi-transparent dark opaque-box background
+  // ASS alpha: 00=opaque, FF=transparent
+  const header = `[Script Info]
+ScriptType: v4.00+
+Collisions: Normal
+PlayResX: 720
+PlayResY: 1280
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,${fontName},${fontSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,3,0,0,2,20,20,50,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
+
+  const blocks = srtContent.trim().split(/\n\n+/);
+  const dialogues = blocks
+    .map((block) => {
+      const lines = block.trim().split("\n");
+      if (lines.length < 3) return null;
+      const times = lines[1].split("-->");
+      if (times.length < 2) return null;
+      const start = srtTimestampToAss(times[0]);
+      const end = srtTimestampToAss(times[1]);
+      const text = lines.slice(2).join("\\N");
+      return `Dialogue: 0,${start},${end},Default,,0,0,0,,${text}`;
+    })
+    .filter(Boolean);
+
+  return `${header}\n${dialogues.join("\n")}`;
+}
+
 export async function burnSubtitles(
   videoUrl: string,
   srtContent: string,
@@ -20,7 +61,7 @@ export async function burnSubtitles(
 ): Promise<string> {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "subtitle-"));
   const videoPath = path.join(tmpDir, "input.mp4");
-  const srtPath = path.join(tmpDir, "subs.srt");
+  const assPath = path.join(tmpDir, "subs.ass");
   const outputPath = path.join(tmpDir, "output.mp4");
 
   try {
@@ -29,21 +70,19 @@ export async function burnSubtitles(
     if (!videoRes.ok) throw new Error(`Failed to fetch video: ${videoRes.status}`);
     await fs.writeFile(videoPath, Buffer.from(await videoRes.arrayBuffer()));
 
-    // Write SRT file — libass reads it directly, no text escaping needed
-    await fs.writeFile(srtPath, srtContent, "utf8");
-
-    // Copy Korean-capable font into tmpDir so libass can find it via fontsdir
+    // Copy font into tmpDir
     const fontSrc = path.join(process.cwd(), "public", "fonts", "NanumGothic.ttf");
     await fs.copyFile(fontSrc, path.join(tmpDir, "NanumGothic.ttf"));
 
-    // Escape path for FFmpeg filter syntax (colons must be escaped)
-    const escapedSrt = srtPath.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'");
+    // Convert SRT → ASS with full style control (BorderStyle=3 = opaque box)
+    const assContent = srtToAss(srtContent, "NanumGothic", 9);
+    await fs.writeFile(assPath, assContent, "utf8");
+
+    // Escape path for FFmpeg filter syntax
+    const escapedAss = assPath.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'");
     const escapedFontsDir = tmpDir.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'");
 
-    // YouTube-style: clean white text, semi-transparent dark background box, bottom center
-    // ASS alpha: 00=opaque, FF=transparent — &H60000000 = ~62% opaque black
-    const forceStyle = "FontName=NanumGothic,FontSize=9,Bold=0,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,Outline=0,Shadow=0,BackColour=&H60000000,BorderStyle=3,Alignment=2,MarginV=50";
-    const vf = `subtitles='${escapedSrt}':fontsdir='${escapedFontsDir}':force_style='${forceStyle}'`;
+    const vf = `ass='${escapedAss}':fontsdir='${escapedFontsDir}'`;
 
     await new Promise<void>((resolve, reject) => {
       ffmpeg(videoPath)
