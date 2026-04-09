@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
       onBeforeGenerateToken: async () => ({
         allowedContentTypes: ["video/mp4", "image/png", "image/jpeg", "image/webp"],
         maximumSizeInBytes: 500 * 1024 * 1024, // 500MB
+        allowOverwrite: true,
       }),
       onUploadCompleted: async () => {},
     });
