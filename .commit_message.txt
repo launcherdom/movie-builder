@@ -1,1 +1,1 @@
-fix: increase subtitle font size from 9 to 52 for 1280px height video
+fix: subtitle font size 44, background opacity 40%, margin raised to 120

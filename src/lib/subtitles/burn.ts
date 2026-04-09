@@ -31,7 +31,7 @@ PlayResY: 1280
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,${fontName},${fontSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,3,4,0,2,20,20,50,1
+Style: Default,${fontName},${fontSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&H99000000,0,0,0,0,100,100,0,0,3,4,0,2,20,20,120,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
@@ -75,7 +75,7 @@ export async function burnSubtitles(
     await fs.copyFile(fontSrc, path.join(tmpDir, "NanumGothic.ttf"));
 
     // Convert SRT → ASS with full style control (BorderStyle=3 = opaque box)
-    const assContent = srtToAss(srtContent, "NanumGothic", 52);
+    const assContent = srtToAss(srtContent, "NanumGothic", 44);
     await fs.writeFile(assPath, assContent, "utf8");
 
     // Escape path for FFmpeg filter syntax
