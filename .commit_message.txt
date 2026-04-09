@@ -1,1 +1,1 @@
-fix: 스토리 개선 요청에서 tool_use 포함 assistant 메시지로 API 오류 수정
+fix: BLOB_READ_WRITE_TOKEN 없는 로컬 환경에서 그리드 분할 이미지 base64 fallback

@@ -87,7 +87,9 @@ export async function POST(request: NextRequest) {
       // Split grid into individual panels
       const cells = await splitGridImage(gridBuffer, cols, rows, group.length);
 
-      // Upload each cell to Vercel Blob
+      const cellW = Math.floor(gridImage.width / cols);
+      const cellH = Math.floor(gridImage.height / rows);
+
       for (let i = 0; i < group.length; i++) {
         const shot = group[i];
         const cell = cells[i];
@@ -96,16 +98,19 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        const filename = `${projectId ?? "project"}/storyboard/${shot.id}-${nanoid(6)}.png`;
-        const blob = await put(filename, cell, { access: "public", contentType: "image/png" });
-
-        // Estimate individual cell dimensions
-        const cellW = Math.floor(gridImage.width / cols);
-        const cellH = Math.floor(gridImage.height / rows);
+        let cellUrl: string;
+        try {
+          const filename = `${projectId ?? "project"}/storyboard/${shot.id}-${nanoid(6)}.png`;
+          const blob = await put(filename, cell, { access: "public", contentType: "image/png" });
+          cellUrl = blob.url;
+        } catch {
+          // Fallback: base64 data URL (works without BLOB_READ_WRITE_TOKEN locally)
+          cellUrl = `data:image/png;base64,${cell.toString("base64")}`;
+        }
 
         results.push({
           shotId: shot.id,
-          panel: { url: blob.url, width: cellW, height: cellH },
+          panel: { url: cellUrl, width: cellW, height: cellH },
           prompt: gridPrompt,
         });
       }
