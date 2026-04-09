@@ -6,43 +6,48 @@ import { serializeVideoPrompt } from "@/lib/generation/prompt-builder";
 
 export async function POST(request: NextRequest) {
   try {
-    const { shotId, imageUrl, videoPromptJson, duration, qualityTier, aspectRatio, projectId, endImageUrl } =
+    const { shotId, referenceImageUrls, videoPromptJson, duration, qualityTier, aspectRatio, projectId } =
       await request.json() as {
         shotId: string;
-        imageUrl: string;
+        referenceImageUrls: string[];   // storyboard/keyframe + character sheets + transition ref
         videoPromptJson: VideoPromptJson;
         duration: number;
         qualityTier: QualityTier;
         aspectRatio?: string;
         projectId?: string;
-        endImageUrl?: string;
       };
 
-    if (!imageUrl || !videoPromptJson) {
-      return Response.json({ error: "imageUrl and videoPromptJson are required" }, { status: 400 });
+    if (!referenceImageUrls?.length || !videoPromptJson) {
+      return Response.json({ error: "referenceImageUrls and videoPromptJson are required" }, { status: 400 });
     }
 
     const provider = getVideoProvider(qualityTier);
     const model = VIDEO_MODELS[qualityTier];
-    // Serialize as natural language — Seedance 2.0 expects human-readable prompts,
-    // not raw JSON. Focus on motion, camera work, and sound (image already defines the scene).
-    // Pass duration so the [00-Ns] timestamp block is accurate.
     const prompt = serializeVideoPrompt(videoPromptJson, duration);
 
-    // Seedance tier mapping: draft=480p no-audio, standard/premium=720p with-audio
+    // Seedance tier mapping: draft=480p, standard/premium=720p with audio
     const resolution = qualityTier === "draft" ? "480p" : "720p";
     const generate_audio = model.supportsAudio && qualityTier !== "draft";
 
+    // Filter out data: URLs (base64) — fal.ai only accepts http(s) URLs
+    // Clamp to 9 (API max for reference-to-video)
+    const validRefs = referenceImageUrls
+      .filter((u) => u && u.startsWith("http"))
+      .slice(0, 9);
+
+    if (validRefs.length === 0) {
+      return Response.json({ error: "No valid http reference image URLs provided" }, { status: 400 });
+    }
+
     const { requestId, endpoint } = await provider.submitVideo({
       prompt,
-      image_url: imageUrl,
+      reference_image_urls: validRefs,
       duration,
       maxDuration: model.maxDuration,
       aspect_ratio: aspectRatio ?? "9:16",
       resolution,
       generate_audio,
       end_user_id: projectId,
-      end_image_url: endImageUrl,
     });
 
     return Response.json({ shotId, requestId, endpoint });

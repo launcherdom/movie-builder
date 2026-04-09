@@ -35,24 +35,24 @@ export const IMAGE_MODELS: Record<QualityTier, ImageModelConfig> = {
 
 export const VIDEO_MODELS: Record<QualityTier, VideoModelConfig> = {
   draft: {
-    endpoint: "bytedance/seedance-2.0/fast/image-to-video",
-    name: "Seedance 2.0 Fast (480p)",
+    endpoint: "bytedance/seedance-2.0/fast/reference-to-video",
+    name: "Seedance 2.0 Fast Reference (480p)",
     costPerSecond: 0.03,
     maxDuration: 15,
     supportsAudio: true,
     supportsReferenceImages: true,
   },
   standard: {
-    endpoint: "bytedance/seedance-2.0/fast/image-to-video",
-    name: "Seedance 2.0 Fast (720p)",
+    endpoint: "bytedance/seedance-2.0/fast/reference-to-video",
+    name: "Seedance 2.0 Fast Reference (720p)",
     costPerSecond: 0.05,
     maxDuration: 15,
     supportsAudio: true,
     supportsReferenceImages: true,
   },
   premium: {
-    endpoint: "bytedance/seedance-2.0/fast/image-to-video",
-    name: "Seedance 2.0 Fast (720p + audio)",
+    endpoint: "bytedance/seedance-2.0/fast/reference-to-video",
+    name: "Seedance 2.0 Fast Reference (720p + audio)",
     costPerSecond: 0.05,
     maxDuration: 15,
     supportsAudio: true,

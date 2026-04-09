@@ -42,19 +42,18 @@ export class FalVideoProvider implements VideoProvider {
 
   async submitVideo(params: VideoSubmitParams): Promise<VideoSubmitResult> {
     const clampedDuration = Math.min(Math.round(params.duration), params.maxDuration);
-    // Seedance-family models take duration as a string enum ("auto" | "4".."15")
-    const durationValue = String(clampedDuration) as string;
+    // Seedance-family models take duration as a string enum ("4".."15")
+    const durationValue = String(clampedDuration);
 
     const { request_id } = await fal.queue.submit(this.endpoint, {
       input: {
         prompt: params.prompt,
-        image_url: params.image_url,
+        reference_image_urls: params.reference_image_urls,
         duration: durationValue,
         aspect_ratio: params.aspect_ratio ?? "9:16",
         ...(params.resolution && { resolution: params.resolution }),
         ...(params.generate_audio !== undefined && { generate_audio: params.generate_audio }),
         ...(params.end_user_id && { end_user_id: params.end_user_id }),
-        ...(params.end_image_url && { end_image_url: params.end_image_url }),
       },
     });
 

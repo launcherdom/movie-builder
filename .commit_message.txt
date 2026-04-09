@@ -1,1 +1,1 @@
-UI: 씬 단위 그리드 생성 반영 - GENERATE SCENE 버튼 그리드 API 전환, 샷 진행 점 표시
+reference-to-video 모델 전환: 콘티 + 캐릭터 시트 + 전환 샷 멀티 레퍼런스 이미지 구성

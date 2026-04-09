@@ -19,14 +19,13 @@ export interface ImageProvider {
 
 export interface VideoSubmitParams {
   prompt: string;
-  image_url: string;
-  duration: number;       // seconds (numeric from store)
+  reference_image_urls: string[];  // Seedance reference-to-video: 1–9 reference images
+  duration: number;                // seconds (numeric from store)
   aspect_ratio?: string;
   maxDuration: number;
-  resolution?: string;    // e.g. "720p" | "480p"
+  resolution?: string;             // e.g. "720p" | "480p"
   generate_audio?: boolean;
-  end_user_id?: string;   // required by some providers (e.g. Seedance) for compliance
-  end_image_url?: string; // Seedance 2.0: last frame target for smooth shot transitions
+  end_user_id?: string;            // required by Seedance for compliance
 }
 
 export interface VideoSubmitResult {

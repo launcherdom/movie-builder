@@ -73,7 +73,7 @@ async function pollVideo(requestId: string, endpoint: string): Promise<Generated
   }
 }
 
-function ShotVideoCard({ shot, shotIndex, sceneDescription }: { shot: Shot; shotIndex: number; sceneDescription: string }) {
+function ShotVideoCard({ shot, shotIndex, sceneDescription, sceneCharacterIds }: { shot: Shot; shotIndex: number; sceneDescription: string; sceneCharacterIds: string[] }) {
   const store = useProjectStore();
   const { setShotVideo, setShotVideoStatus, setShotVideoPromptJson, setShotKeyframe, setShotKeyframeStatus, qualityTier, aspectRatio, visualStyle, story } = store;
   const { t } = useLangStore();
@@ -117,8 +117,8 @@ function ShotVideoCard({ shot, shotIndex, sceneDescription }: { shot: Shot; shot
   };
 
   const handleGenerate = async () => {
-    const imageUrl = shot.keyframeImage?.url ?? shot.storyboardPanel?.url;
-    if (!imageUrl) {
+    const primaryImage = shot.keyframeImage?.url ?? shot.storyboardPanel?.url;
+    if (!primaryImage) {
       setError(t.video.noPanel);
       return;
     }
@@ -126,12 +126,20 @@ function ShotVideoCard({ shot, shotIndex, sceneDescription }: { shot: Shot; shot
     setError(null);
     setShotVideoStatus(shot.id, "generating");
     try {
+      // Build reference image list: primary shot image + character sheets for this scene
+      const characterSheets = (story?.characters ?? [])
+        .filter((c) => sceneCharacterIds.includes(c.id) && c.characterSheet?.url?.startsWith("http"))
+        .map((c) => c.characterSheet!.url);
+      const referenceImageUrls = [primaryImage, ...characterSheets]
+        .filter((u) => u.startsWith("http"))
+        .slice(0, 9);
+
       const res = await fetch("/api/video/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shotId: shot.id,
-          imageUrl,
+          referenceImageUrls,
           videoPromptJson: shot.videoPromptJson ?? json,
           duration: shot.duration,
           qualityTier,
@@ -390,19 +398,31 @@ export function VideoStep() {
 
     setGenerating(true, { current: 0, total: toProcess.length });
 
-    // Generate all videos (max 1 concurrent via queue), using keyframe > storyboard panel as source
+    // Generate all videos (max 1 concurrent via queue)
     for (let i = 0; i < toProcess.length; i++) {
-      const { shot } = toProcess[i];
-      // Look ahead in full ordered sequence for end_image_url (Seedance smooth transition)
+      const { shot, scene } = toProcess[i];
+      // Look ahead in full ordered sequence for next shot as transition reference
       const shotIndexInAll = allPairs.findIndex((p) => p.shot.id === shot.id);
-      const nextShotInAll = shotIndexInAll >= 0 ? allPairs[shotIndexInAll + 1]?.shot : undefined;
-      const endImageUrl = nextShotInAll?.keyframeImage?.url ?? nextShotInAll?.storyboardPanel?.url;
+      const nextShot = allPairs[shotIndexInAll + 1]?.shot;
+      const nextShotRef = nextShot?.keyframeImage?.url ?? nextShot?.storyboardPanel?.url;
 
       await generationQueue.enqueueVideo(async () => {
-        const freshShot = useProjectStore.getState().story?.scenes
+        const storeState = useProjectStore.getState();
+        const freshShot = storeState.story?.scenes
           .flatMap((sc) => sc.shots).find((sh) => sh.id === shot.id);
-        const imageUrl = freshShot?.keyframeImage?.url ?? freshShot?.storyboardPanel?.url;
-        if (!imageUrl || !freshShot) return;
+        const primaryImage = freshShot?.keyframeImage?.url ?? freshShot?.storyboardPanel?.url;
+        if (!primaryImage || !freshShot) return;
+
+        // Reference images: primary shot + character sheets + next shot (transition)
+        const characterSheets = (storeState.story?.characters ?? [])
+          .filter((c) => scene.characterIds.includes(c.id) && c.characterSheet?.url?.startsWith("http"))
+          .map((c) => c.characterSheet!.url);
+        const referenceImageUrls = [
+          primaryImage,
+          ...characterSheets,
+          ...(nextShotRef && nextShotRef.startsWith("http") ? [nextShotRef] : []),
+        ].filter((u) => u.startsWith("http")).slice(0, 9);
+
         const json = freshShot.videoPromptJson ?? buildDefaultVideoPromptJson(freshShot);
         store.setShotVideoStatus(shot.id, "generating");
         try {
@@ -411,13 +431,12 @@ export function VideoStep() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               shotId: shot.id,
-              imageUrl,
+              referenceImageUrls,
               videoPromptJson: json,
               duration: shot.duration,
               qualityTier,
               aspectRatio,
-              projectId: useProjectStore.getState().id,
-              endImageUrl,
+              projectId: storeState.id,
             }),
           });
           if (!res.ok) { store.setShotVideoStatus(shot.id, "error"); return; }
@@ -482,7 +501,7 @@ export function VideoStep() {
             SCENE {String(si + 1).padStart(2, "0")} — {scene.heading}
           </p>
           {scene.shots.map((shot, shi) => (
-            <ShotVideoCard key={shot.id} shot={shot} shotIndex={shi} sceneDescription={scene.description} />
+            <ShotVideoCard key={shot.id} shot={shot} shotIndex={shi} sceneDescription={scene.description} sceneCharacterIds={scene.characterIds} />
           ))}
         </div>
       ))}
