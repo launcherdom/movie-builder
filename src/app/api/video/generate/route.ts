@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import type { QualityTier, VideoPromptJson } from "@/types/movie";
 import { getVideoProvider } from "@/lib/providers/registry";
 import { VIDEO_MODELS } from "@/lib/fal/models";
+import { serializeVideoPrompt } from "@/lib/generation/prompt-builder";
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +23,9 @@ export async function POST(request: NextRequest) {
 
     const provider = getVideoProvider(qualityTier);
     const model = VIDEO_MODELS[qualityTier];
-    const prompt = JSON.stringify(videoPromptJson);
+    // Serialize as natural language — Seedance 2.0 expects human-readable prompts,
+    // not raw JSON. Focus on motion, camera work, and sound (image already defines the scene).
+    const prompt = serializeVideoPrompt(videoPromptJson);
 
     // Seedance tier mapping: draft=480p no-audio, standard/premium=720p with-audio
     const resolution = qualityTier === "draft" ? "480p" : "720p";

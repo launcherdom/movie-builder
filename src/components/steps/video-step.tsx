@@ -6,12 +6,28 @@ import { VideoPromptEditor } from "@/components/video/video-prompt-editor";
 import { generationQueue } from "@/lib/generation/queue";
 import type { Shot, VideoPromptJson } from "@/types/movie";
 
+// Map common direction words to Seedance-recognized cinematic camera vocabulary
+function toCinematicMovement(raw?: string): string {
+  if (!raw) return "static camera";
+  const r = raw.toLowerCase();
+  if (r.includes("dolly") || r.includes("push") || r.includes("pull")) return "dolly shot";
+  if (r.includes("track") || r.includes("follow")) return "tracking shot";
+  if (r.includes("pan")) return "slow pan";
+  if (r.includes("orbit") || r.includes("arc")) return "orbiting shot";
+  if (r.includes("handheld") || r.includes("hand held")) return "handheld";
+  if (r.includes("zoom")) return "slow zoom";
+  if (r.includes("tilt")) return "tilt";
+  if (r.includes("crane") || r.includes("rise") || r.includes("descend")) return "crane shot";
+  if (r.includes("static") || r.includes("lock")) return "static camera";
+  return raw; // pass through if already specific
+}
+
 function buildDefaultVideoPromptJson(shot: Shot): VideoPromptJson {
   return {
     shot: {
-      composition: shot.shotType + " shot, " + shot.description,
+      composition: shot.shotType + " shot",
       lens: "standard cinematic lens",
-      camera_movement: shot.cameraDirection ?? "static",
+      camera_movement: toCinematicMovement(shot.cameraDirection),
     },
     subject: {
       description: shot.description,
@@ -26,10 +42,10 @@ function buildDefaultVideoPromptJson(shot: Shot): VideoPromptJson {
     visual_details: {
       action: shot.description,
       special_effects: "none",
-      hair_clothing_motion: "natural",
+      hair_clothing_motion: "natural fabric motion",
     },
     cinematography: {
-      lighting: "cinematic lighting",
+      lighting: "natural cinematic lighting, soft shadows",
       color_palette: "natural tones",
       tone: "dramatic",
     },
