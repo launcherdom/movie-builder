@@ -376,18 +376,28 @@ export function VideoStep() {
     setSubtitleError(null);
     setSubtitledUrl(null);
     try {
-      const res = await fetch("/api/video/compose", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          videoUrl,
-          srtContent: srt,
-          projectId: useProjectStore.getState().id,
-        }),
+      // Run entirely in browser — blob: URLs are only accessible client-side
+      const { FFmpeg } = await import("@ffmpeg/ffmpeg");
+      const { fetchFile, toBlobURL } = await import("@ffmpeg/util");
+      const ffmpeg = new FFmpeg();
+      const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
       });
-      if (!res.ok) throw new Error(await res.text());
-      const { url } = await res.json();
-      setSubtitledUrl(url);
+
+      await ffmpeg.writeFile("input.mp4", await fetchFile(videoUrl));
+      await ffmpeg.writeFile("subtitles.srt", new TextEncoder().encode(srt));
+
+      await ffmpeg.exec([
+        "-i", "input.mp4",
+        "-vf", "subtitles=subtitles.srt:force_style='FontSize=24,PrimaryColour=&H00FFFFFF,Outline=2,Bold=1,Alignment=2,MarginV=30'",
+        "-c:a", "copy",
+        "output.mp4",
+      ]);
+
+      const data = await ffmpeg.readFile("output.mp4");
+      setSubtitledUrl(URL.createObjectURL(new Blob([new Uint8Array(data as Uint8Array)], { type: "video/mp4" })));
     } catch (e) {
       setSubtitleError(e instanceof Error ? e.message : "Subtitle burn failed");
     } finally {
