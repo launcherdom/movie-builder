@@ -1,1 +1,1 @@
-이미지 모델 엔드포인트를 fal-ai/nano-banana-2로 통일 (잘못된 엔드포인트 수정)
+Seedance 2.0 컴플라이언스: end_user_id 전체 파이프라인 적용
