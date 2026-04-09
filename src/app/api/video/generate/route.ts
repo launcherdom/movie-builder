@@ -21,9 +21,10 @@ export async function POST(request: NextRequest) {
       // Common
       aspectRatio?: string;
       projectId?: string;
+      visualStyle?: string;
     };
 
-    const { referenceImageUrls, referenceLabels, aspectRatio, projectId } = body;
+    const { referenceImageUrls, referenceLabels, aspectRatio, projectId, visualStyle } = body;
 
     if (!referenceImageUrls?.length) {
       return Response.json({ error: "referenceImageUrls are required" }, { status: 400 });
@@ -49,14 +50,14 @@ export async function POST(request: NextRequest) {
       // Scene mode: multi-timestamp prompt
       const totalDuration = body.totalDuration ?? body.shots.reduce((s, sh) => s + (sh.endTime - sh.startTime), 0);
       duration = Math.min(Math.round(totalDuration), 15);
-      prompt = serializeSceneVideoPrompt(body.shots, body.scene ?? { location: "", timeOfDay: "day" });
+      prompt = serializeSceneVideoPrompt(body.shots, body.scene ?? { location: "", timeOfDay: "day" }, visualStyle as import("@/types/movie").VisualStyle | undefined);
       id = body.sceneId;
       console.log("[video/generate] SCENE mode prompt:", prompt);
       console.log("[video/generate] reference images:", validRefs);
     } else if (body.shotId && body.videoPromptJson && body.duration) {
       // Shot mode (legacy individual shot)
       duration = body.duration;
-      prompt = serializeVideoPrompt(body.videoPromptJson, duration);
+      prompt = serializeVideoPrompt(body.videoPromptJson, duration, visualStyle as import("@/types/movie").VisualStyle | undefined);
       id = body.shotId;
     } else {
       return Response.json({ error: "Provide either sceneId+shots or shotId+videoPromptJson+duration" }, { status: 400 });

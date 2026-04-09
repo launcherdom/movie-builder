@@ -91,15 +91,16 @@ export function serializeImagePrompt(prompt: ImagePromptJson): string {
  *
  * The start frame already defines the visual scene, so focus on MOTION, CAMERA, and SOUND.
  */
-export function serializeVideoPrompt(p: VideoPromptJson, duration?: number): string {
+export function serializeVideoPrompt(p: VideoPromptJson, duration?: number, visualStyle?: VisualStyle): string {
   const parts: string[] = [];
 
   // 1. Style declaration (Seedance reads this first)
+  const stylePrefix = visualStyle ? STYLE_CINEMATIC_PREFIX[visualStyle] : null;
   const styleTokens = [
     p.cinematography.tone && p.cinematography.tone !== "dramatic" ? p.cinematography.tone : "cinematic",
     p.cinematography.lighting,
   ].filter(Boolean);
-  parts.push(`Style: ${styleTokens.join(", ")}.`);
+  parts.push(`Style: ${stylePrefix ? stylePrefix + " " : ""}${styleTokens.join(", ")}.`);
 
   // 2. Timestamped shot block — Seedance optimized format
   const dur = duration ?? 5;
@@ -170,7 +171,8 @@ export function serializeVideoPrompt(p: VideoPromptJson, duration?: number): str
  */
 export function serializeSceneVideoPrompt(
   shots: Array<{ prompt: VideoPromptJson; startTime: number; endTime: number }>,
-  scene: { location: string; timeOfDay: string }
+  scene: { location: string; timeOfDay: string },
+  visualStyle?: VisualStyle
 ): string {
   if (shots.length === 0) return "";
 
@@ -178,13 +180,14 @@ export function serializeSceneVideoPrompt(
   const first = shots[0].prompt;
 
   // 1. Style declaration (from first shot — same across scene)
+  const stylePrefix = visualStyle ? STYLE_CINEMATIC_PREFIX[visualStyle] : null;
   const styleTokens = [
     first.cinematography.tone && first.cinematography.tone !== "dramatic"
       ? first.cinematography.tone
       : "cinematic",
     first.cinematography.lighting,
   ].filter(Boolean);
-  parts.push(`Style: ${styleTokens.join(", ")}.`);
+  parts.push(`Style: ${stylePrefix ? stylePrefix + " " : ""}${styleTokens.join(", ")}.`);
 
   // 2. Per-shot timestamp blocks
   for (const { prompt: p, startTime, endTime } of shots) {

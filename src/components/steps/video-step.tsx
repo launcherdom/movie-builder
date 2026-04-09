@@ -104,7 +104,7 @@ function SceneVideoCard({
   sceneIndex: number;
 }) {
   const store = useProjectStore();
-  const { setSceneVideo, setSceneVideoStatus, aspectRatio, story } = store;
+  const { setSceneVideo, setSceneVideoStatus, aspectRatio, visualStyle, story } = store;
   const { t } = useLangStore();
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -163,6 +163,7 @@ function SceneVideoCard({
           totalDuration,
           scene: { location: scene.location, timeOfDay: scene.timeOfDay },
           aspectRatio,
+          visualStyle,
           projectId: useProjectStore.getState().id,
         }),
       });
@@ -510,6 +511,7 @@ export function VideoStep() {
               totalDuration,
               scene: { location: freshScene.location, timeOfDay: freshScene.timeOfDay },
               aspectRatio,
+              visualStyle: storeState.visualStyle,
               projectId: storeState.id,
             }),
           });

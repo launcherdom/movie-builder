@@ -1,1 +1,1 @@
-fix: allow overwrite on Vercel Blob upload for assembled video
+fix: propagate visualStyle to video prompt serializers and fix subtitle ASS background box
