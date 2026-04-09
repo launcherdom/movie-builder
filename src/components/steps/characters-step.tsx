@@ -22,22 +22,24 @@ export function CharactersStep() {
 
   const handleGenerateAll = async () => {
     setGeneratingAll(true);
-    for (const char of story.characters) {
-      if (char.characterSheet) continue;
-      try {
-        const res = await fetch("/api/characters/sheet", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ character: char, visualStyle }),
-        });
-        if (res.ok) {
-          const { characterSheet } = await res.json();
-          useProjectStore.getState().updateCharacterSheet(char.id, characterSheet);
+    const pending = story.characters.filter((c) => !c.characterSheet);
+    await Promise.all(
+      pending.map(async (char) => {
+        try {
+          const res = await fetch("/api/characters/sheet", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ character: char, visualStyle }),
+          });
+          if (res.ok) {
+            const { characterSheet } = await res.json();
+            useProjectStore.getState().updateCharacterSheet(char.id, characterSheet);
+          }
+        } catch {
+          // continue with other characters
         }
-      } catch {
-        // continue with other characters
-      }
-    }
+      })
+    );
     setGeneratingAll(false);
   };
 
