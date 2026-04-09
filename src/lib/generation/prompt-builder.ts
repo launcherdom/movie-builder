@@ -112,13 +112,11 @@ export function serializeVideoPrompt(p: VideoPromptJson, duration?: number): str
   ].filter(Boolean);
   parts.push(`[00-${dur}s] ${cameraTokens.join(", ")}.`);
 
-  // 3. Subject & action
-  if (p.subject.description) parts.push(p.subject.description + ".");
+  // 3. Action only — character appearance delegated to reference images (@Image1, @Image2, ...)
   if (p.visual_details.action && p.visual_details.action !== p.subject.description) {
     parts.push(p.visual_details.action + ".");
-  }
-  if (p.subject.wardrobe && p.subject.wardrobe !== "as described in scene") {
-    parts.push(`Wearing ${p.subject.wardrobe}.`);
+  } else if (p.subject.description) {
+    parts.push(p.subject.description + ".");
   }
 
   // 4. Dialogue lip-sync guidance (awesome-seedance: critical for mouth movement accuracy)
@@ -203,9 +201,11 @@ export function serializeSceneVideoPrompt(
 
     const blockParts = [`[${start}-${end}s] ${cameraTokens.join(", ")}.`];
 
-    if (p.subject.description) blockParts.push(p.subject.description + ".");
+    // Action only per shot — appearance from reference images
     if (p.visual_details.action && p.visual_details.action !== p.subject.description) {
       blockParts.push(p.visual_details.action + ".");
+    } else if (p.subject.description) {
+      blockParts.push(p.subject.description + ".");
     }
     if (p.dialogue && p.dialogue.trim()) {
       blockParts.push(`【Dialogue lip-sync】"${p.dialogue.trim()}"`);

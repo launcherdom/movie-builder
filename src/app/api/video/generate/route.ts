@@ -10,6 +10,7 @@ export async function POST(request: NextRequest) {
       // Shot mode (legacy)
       shotId?: string;
       referenceImageUrls: string[];
+      referenceLabels?: string[];
       videoPromptJson?: VideoPromptJson;
       duration?: number;
       // Scene mode
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
       projectId?: string;
     };
 
-    const { referenceImageUrls, aspectRatio, projectId } = body;
+    const { referenceImageUrls, referenceLabels, aspectRatio, projectId } = body;
 
     if (!referenceImageUrls?.length) {
       return Response.json({ error: "referenceImageUrls are required" }, { status: 400 });
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
     const { requestId, endpoint } = await provider.submitVideo({
       prompt,
       reference_image_urls: validRefs,
+      reference_labels: referenceLabels,
       duration,
       maxDuration: model.maxDuration,
       aspect_ratio: aspectRatio ?? "9:16",

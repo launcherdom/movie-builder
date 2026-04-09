@@ -333,16 +333,20 @@ Visual style: ${visualStyle}, aspect ratio: ${aspectRatio}.
 Characters:
 ${charDescriptions}
 
-For EACH shot, write a rich, immersive cinematic prompt that:
+Reference images (@Image1, @Image2, ...) already contain the characters' exact appearance.
+DO NOT describe character appearance, hair, clothing, or physical features in the prompt — the reference images handle that. Text descriptions of appearance conflict with the reference images and reduce consistency.
+
+For EACH shot, write a focused cinematic prompt that:
 1. Opens with camera framing (e.g. "A tight close-up", "An extreme wide shot", "A low-angle shot")
 2. Describes the setting with vivid sensory details (lighting, atmosphere, textures)
-3. Names characters with their exact visual anchors (hair, clothing, distinguishing features)
-4. Describes action in cinematic present tense with motion details
-5. Includes technical cinematography (film grain, lens characteristics, color grading)
-6. For dialogue shots: describes mouth movement and emotional expression
+3. Describes ACTION and MOTION in cinematic present tense (what characters DO, not how they look)
+4. Includes technical cinematography (film grain, lens characteristics, color grading)
+5. For dialogue shots: describes mouth movement and emotional expression
 
-Write prompts for AI video generation — they must be concrete, visual, and motion-focused.
-Avoid abstract concepts. Describe what the camera SEES, not what characters FEEL.
+subject.description = action/movement only (e.g. "walks forward", "turns to face camera")
+subject.wardrobe = leave empty or "as in reference image"
+
+Write prompts for AI video generation — concrete, motion-focused, NO appearance descriptions.
 
 Use the create_video_prompts tool to output all prompts.`;
 }

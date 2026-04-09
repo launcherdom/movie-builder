@@ -23,6 +23,7 @@ export interface ImageProvider {
 export interface VideoSubmitParams {
   prompt: string;
   reference_image_urls: string[];  // Seedance reference-to-video: 1–9 reference images
+  reference_labels?: string[];     // optional label per image e.g. "character face", "scene panel"
   duration: number;                // seconds (numeric from store)
   aspect_ratio?: string;
   maxDuration: number;

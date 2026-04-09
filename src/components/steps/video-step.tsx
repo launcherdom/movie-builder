@@ -140,6 +140,13 @@ function SceneVideoCard({
         .find((u): u is string => !!u && u.startsWith("http"));
       const referenceImageUrls = [...faceImageUrls, ...charSheetUrls, ...(firstPanelUrl ? [firstPanelUrl] : [])].slice(0, 9);
 
+      // Labels tell Seedance what each @Image represents — critical for identity anchoring
+      const referenceLabels = [
+        ...sceneChars.filter((c) => c.faceImage?.url?.startsWith("http")).map((c) => `${c.name} face close-up`),
+        ...sceneChars.filter((c) => c.characterSheet?.url?.startsWith("http")).map((c) => `${c.name} character sheet`),
+        ...(firstPanelUrl ? ["scene storyboard panel"] : []),
+      ].slice(0, 9);
+
       if (referenceImageUrls.length === 0) {
         throw new Error("No valid reference images");
       }
@@ -152,6 +159,7 @@ function SceneVideoCard({
         body: JSON.stringify({
           sceneId: scene.id,
           referenceImageUrls,
+          referenceLabels,
           shots,
           totalDuration,
           scene: { location: scene.location, timeOfDay: scene.timeOfDay },
