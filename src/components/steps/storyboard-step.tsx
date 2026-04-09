@@ -26,56 +26,63 @@ export function StoryboardStep() {
   const totalPanels = story.scenes.flatMap((sc) => sc.shots).length;
   const donePanels = story.scenes.flatMap((sc) => sc.shots).filter((sh) => sh.imageStatus === "done").length;
 
-  // Generate All (Grid mode): one composite image per scene → split into panels.
-  // All shots in a scene are generated together → guaranteed visual consistency.
+  // Generate All: scenes processed sequentially so each scene can reference
+  // the last panel of the previous scene for visual continuity across the story.
   const handleGenerateAll = async () => {
     setGeneratingAll(true);
     const characters = story.characters;
     const { styleAnalysis } = useProjectStore.getState();
 
-    // Process scenes in parallel — each scene is independent
-    await Promise.all(
-      story.scenes.map(async (scene) => {
-        const pendingShots = scene.shots.filter((sh) => sh.imageStatus !== "done");
-        if (pendingShots.length === 0) return;
+    // Track the last generated panel URL to pass as a cross-scene continuity reference
+    let previousPanelUrl: string | undefined = undefined;
 
-        // Mark all pending shots in this scene as generating
-        pendingShots.forEach((sh) => setShotImageStatus(sh.id, "generating"));
+    for (const scene of story.scenes) {
+      const pendingShots = scene.shots.filter((sh) => sh.imageStatus !== "done");
+      if (pendingShots.length === 0) {
+        // Scene already done — extract its last panel to carry forward
+        const lastDone = [...scene.shots].reverse().find((sh) => sh.storyboardPanel?.url?.startsWith("http"));
+        if (lastDone?.storyboardPanel?.url) previousPanelUrl = lastDone.storyboardPanel.url;
+        continue;
+      }
 
-        try {
-          const res = await fetch("/api/storyboard/grid-generate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              scene: { ...scene, shots: pendingShots },
-              characters,
-              qualityTier,
-              visualStyle,
-              aspectRatio,
-              projectId,
-              styleAnalysis,
-            }),
-          });
-          if (!res.ok) {
-            pendingShots.forEach((sh) => setShotImageStatus(sh.id, "error"));
-            return;
-          }
-          const { results } = await res.json() as {
-            results: Array<{ shotId: string; panel: { url: string; width: number; height: number } | null; prompt: string }>
-          };
-          for (const result of results) {
-            if (result.panel) {
-              setShotPanel(result.shotId, result.panel, result.prompt);
-              // Grid results are already uploaded to Vercel Blob — no further persist needed
-            } else {
-              setShotImageStatus(result.shotId, "error");
-            }
-          }
-        } catch {
+      pendingShots.forEach((sh) => setShotImageStatus(sh.id, "generating"));
+
+      try {
+        const res = await fetch("/api/storyboard/grid-generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scene: { ...scene, shots: pendingShots },
+            characters,
+            qualityTier,
+            visualStyle,
+            aspectRatio,
+            projectId,
+            styleAnalysis,
+            previousPanelUrl,
+          }),
+        });
+        if (!res.ok) {
           pendingShots.forEach((sh) => setShotImageStatus(sh.id, "error"));
+          continue;
         }
-      })
-    );
+        const { results } = await res.json() as {
+          results: Array<{ shotId: string; panel: { url: string; width: number; height: number } | null; prompt: string }>
+        };
+        for (const result of results) {
+          if (result.panel) {
+            setShotPanel(result.shotId, result.panel, result.prompt);
+          } else {
+            setShotImageStatus(result.shotId, "error");
+          }
+        }
+        // After this scene completes, use the last shot's panel as reference for next scene
+        const lastResult = results.filter((r) => r.panel?.url?.startsWith("http")).at(-1);
+        if (lastResult?.panel?.url) previousPanelUrl = lastResult.panel.url;
+      } catch {
+        pendingShots.forEach((sh) => setShotImageStatus(sh.id, "error"));
+      }
+    }
 
     setGeneratingAll(false);
   };

@@ -7,7 +7,7 @@ import { buildStoryboardPrompt, serializeImagePrompt } from "@/lib/generation/pr
 // for visual consistency (replaces the unreliable grid-split approach).
 export async function POST(request: NextRequest) {
   try {
-    const { scene, characters, qualityTier, visualStyle, aspectRatio, referenceImageUrl, styleAnalysis } =
+    const { scene, characters, qualityTier, visualStyle, aspectRatio, referenceImageUrl, styleAnalysis, previousPanelUrl } =
       await request.json() as {
         scene: Scene;
         characters: Character[];
@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
         aspectRatio: string;
         referenceImageUrl?: string;
         styleAnalysis?: string;
+        previousPanelUrl?: string; // last panel of the previous scene for visual continuity
         projectId?: string;
       };
 
@@ -30,9 +31,11 @@ export async function POST(request: NextRequest) {
       .filter((c) => c.characterSheet?.url?.startsWith("http"))
       .map((c) => c.characterSheet!.url);
 
-    // Style reference + character sheets as image_urls
+    // Style reference + previous scene's last panel + character sheets as image_urls
+    // previousPanelUrl comes first so the model anchors to the visual continuity frame
     const refUrls = [
-      ...(referenceImageUrl ? [referenceImageUrl] : []),
+      ...(previousPanelUrl && previousPanelUrl.startsWith("http") ? [previousPanelUrl] : []),
+      ...(referenceImageUrl && referenceImageUrl.startsWith("http") ? [referenceImageUrl] : []),
       ...characterSheetUrls,
     ];
 
