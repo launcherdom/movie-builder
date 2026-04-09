@@ -5,7 +5,7 @@ import { VIDEO_MODELS } from "@/lib/fal/models";
 
 export async function POST(request: NextRequest) {
   try {
-    const { shotId, imageUrl, videoPromptJson, duration, qualityTier, aspectRatio } =
+    const { shotId, imageUrl, videoPromptJson, duration, qualityTier, aspectRatio, projectId } =
       await request.json() as {
         shotId: string;
         imageUrl: string;
@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
         duration: number;
         qualityTier: QualityTier;
         aspectRatio?: string;
+        projectId?: string;
       };
 
     if (!imageUrl || !videoPromptJson) {
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
       aspect_ratio: aspectRatio ?? "9:16",
       resolution,
       generate_audio,
+      end_user_id: projectId,
     });
 
     return Response.json({ shotId, requestId, endpoint });

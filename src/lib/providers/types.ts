@@ -25,6 +25,7 @@ export interface VideoSubmitParams {
   maxDuration: number;
   resolution?: string;    // e.g. "720p" | "480p"
   generate_audio?: boolean;
+  end_user_id?: string;   // required by some providers (e.g. Seedance) for compliance
 }
 
 export interface VideoSubmitResult {

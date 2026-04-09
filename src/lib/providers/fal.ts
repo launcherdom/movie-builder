@@ -53,6 +53,7 @@ export class FalVideoProvider implements VideoProvider {
         aspect_ratio: params.aspect_ratio ?? "9:16",
         ...(params.resolution && { resolution: params.resolution }),
         ...(params.generate_audio !== undefined && { generate_audio: params.generate_audio }),
+        ...(params.end_user_id && { end_user_id: params.end_user_id }),
       },
     });
 

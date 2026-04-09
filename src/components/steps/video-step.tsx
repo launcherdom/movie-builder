@@ -119,6 +119,7 @@ function ShotVideoCard({ shot, shotIndex, sceneDescription }: { shot: Shot; shot
           duration: shot.duration,
           qualityTier,
           aspectRatio,
+          projectId: useProjectStore.getState().id,
         }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -343,6 +344,7 @@ export function VideoStep() {
               duration: shot.duration,
               qualityTier,
               aspectRatio,
+              projectId: useProjectStore.getState().id,
             }),
           });
           if (!res.ok) { store.setShotVideoStatus(shot.id, "error"); return; }
