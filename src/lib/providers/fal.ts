@@ -54,6 +54,7 @@ export class FalVideoProvider implements VideoProvider {
         ...(params.resolution && { resolution: params.resolution }),
         ...(params.generate_audio !== undefined && { generate_audio: params.generate_audio }),
         ...(params.end_user_id && { end_user_id: params.end_user_id }),
+        ...(params.end_image_url && { end_image_url: params.end_image_url }),
       },
     });
 
