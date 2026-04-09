@@ -1,1 +1,1 @@
-자막 burn WASM: drawtext fontfile 명시 추가 - WASM 샌드박스에서 폰트 미발견으로 크래시 수정
+자막 burn: WASM OOM 한계로 서버 사이드로 전환, DejaVuSans 폰트 번들로 drawtext fontfile 명시
