@@ -433,8 +433,19 @@ export function VideoStep() {
       const logs: string[] = [];
       ffmpeg.on("log", ({ message }) => logs.push(message));
       await ffmpeg.writeFile("input.mp4", await fetchFile(videoUrl));
-      const code = await ffmpeg.exec([
+
+      // Step 1: normalize to baseline H.264/yuv420p to handle any codec/format quirks from fal.ai
+      const step1 = await ffmpeg.exec([
         "-i", "input.mp4",
+        "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+        "-c:a", "copy",
+        "normalized.mp4",
+      ]);
+      if (step1 !== 0) throw new Error(`FFmpeg WASM error (normalize): ${logs.slice(-3).join(" | ")}`);
+
+      // Step 2: apply drawtext subtitle filter to the normalized video
+      const code = await ffmpeg.exec([
+        "-i", "normalized.mp4",
         "-vf", vf,
         "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
         "-c:a", "copy",
