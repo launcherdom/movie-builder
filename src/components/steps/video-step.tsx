@@ -499,8 +499,8 @@ export function VideoStep() {
 
     setGenerating(true, { current: 0, total: toProcess.length });
 
-    for (const scene of toProcess) {
-      await generationQueue.enqueueVideo(async () => {
+    await Promise.all(toProcess.map((scene) =>
+      generationQueue.enqueueVideo(async () => {
         const storeState = useProjectStore.getState();
         const freshScene = storeState.story?.scenes.find((sc) => sc.id === scene.id);
         if (!freshScene) return;
@@ -546,8 +546,8 @@ export function VideoStep() {
         } catch {
           store.setSceneVideoStatus(scene.id, "error");
         }
-      });
-    }
+      })
+    ));
 
     setGenerating(false);
   };
