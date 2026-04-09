@@ -1,1 +1,1 @@
-어셈블 영상 업로드 413 에러 수정: Vercel Blob 클라이언트 직접 업로드로 전환
+자막 burn: subtitles 필터(libass 필요)를 drawtext 필터 체인으로 교체하여 Vercel 배포 환경에서 작동하도록 수정
