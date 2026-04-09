@@ -1,1 +1,1 @@
-자막 burn WASM: 2단계 처리 추가 - H.264 정규화 후 drawtext 적용으로 디코딩 오류 수정
+자막 burn WASM: drawtext fontfile 명시 추가 - WASM 샌드박스에서 폰트 미발견으로 크래시 수정
