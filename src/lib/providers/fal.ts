@@ -63,19 +63,25 @@ export class FalVideoProvider implements VideoProvider {
     const clampedDuration = Math.min(Math.max(Math.round(params.duration), 4), params.maxDuration);
     const durationValue = String(clampedDuration);
 
-    // Seedance requires reference images to be cited in the prompt as @Image1, @Image2, ...
-    // Include labels so the model knows what each image represents.
+    // Seedance requires reference images/videos cited in prompt as @Image1, @Video1, etc.
     const refs = params.reference_image_urls ?? [];
     const labels = params.reference_labels ?? [];
     const imageRefs = refs
       .map((_, i) => labels[i] ? `@Image${i + 1} (${labels[i]})` : `@Image${i + 1}`)
       .join(" ");
-    const prompt = imageRefs ? `${imageRefs} ${params.prompt}` : params.prompt;
+
+    const videoRefs = params.reference_video_urls ?? [];
+    const videoTags = videoRefs
+      .map((_, i) => `@Video${i + 1} (previous scene)`)
+      .join(" ");
+
+    const prompt = [imageRefs, videoTags, params.prompt].filter(Boolean).join(" ");
 
     const { request_id } = await fal.queue.submit(this.endpoint, {
       input: {
         prompt,
-        reference_image_urls: refs,
+        image_urls: refs,
+        ...(videoRefs.length > 0 && { video_urls: videoRefs }),
         duration: durationValue,
         aspect_ratio: params.aspect_ratio ?? "9:16",
         ...(params.resolution && { resolution: params.resolution }),

@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
       shotId?: string;
       referenceImageUrls: string[];
       referenceLabels?: string[];
+      referenceVideoUrls?: string[];
       videoPromptJson?: VideoPromptJson;
       duration?: number;
       // Scene mode
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
       visualStyle?: string;
     };
 
-    const { referenceImageUrls, referenceLabels, aspectRatio, projectId, visualStyle } = body;
+    const { referenceImageUrls, referenceLabels, referenceVideoUrls, aspectRatio, projectId, visualStyle } = body;
 
     if (!referenceImageUrls?.length) {
       return Response.json({ error: "referenceImageUrls are required" }, { status: 400 });
@@ -63,10 +64,16 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Provide either sceneId+shots or shotId+videoPromptJson+duration" }, { status: 400 });
     }
 
+    // Filter video refs — must be http(s), max 3
+    const validVideoRefs = (referenceVideoUrls ?? [])
+      .filter((u) => u && u.startsWith("http"))
+      .slice(0, 3);
+
     const { requestId, endpoint } = await provider.submitVideo({
       prompt,
       reference_image_urls: validRefs,
       reference_labels: referenceLabels,
+      ...(validVideoRefs.length > 0 && { reference_video_urls: validVideoRefs }),
       duration,
       maxDuration: model.maxDuration,
       aspect_ratio: aspectRatio ?? "9:16",

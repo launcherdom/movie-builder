@@ -1,1 +1,1 @@
-fix: subtitle font size 44, background opacity 40%, margin raised to 120
+feat: Seedance 2.0 최적화 - 이전 씬 영상 레퍼런스, 순차 생성, 씬 15초 제한, @태그 가이드

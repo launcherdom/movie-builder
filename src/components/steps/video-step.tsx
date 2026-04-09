@@ -150,6 +150,11 @@ function SceneVideoCard({
         throw new Error("No valid reference images");
       }
 
+      // Previous scene's completed video as reference for continuity
+      const prevScene = sceneIndex > 0 ? story?.scenes[sceneIndex - 1] : null;
+      const prevVideoUrl = prevScene?.sceneVideoClip?.url;
+      const referenceVideoUrls = prevVideoUrl && prevVideoUrl.startsWith("http") ? [prevVideoUrl] : [];
+
       const shots = buildSceneShotsPayload(scene, characters);
 
       const res = await fetch("/api/video/generate", {
@@ -159,6 +164,7 @@ function SceneVideoCard({
           sceneId: scene.id,
           referenceImageUrls,
           referenceLabels,
+          ...(referenceVideoUrls.length > 0 && { referenceVideoUrls }),
           shots,
           totalDuration,
           scene: { location: scene.location, timeOfDay: scene.timeOfDay },
@@ -474,8 +480,11 @@ export function VideoStep() {
 
     setGenerating(true, { current: 0, total: toProcess.length });
 
-    await Promise.all(toProcess.map((scene) =>
-      generationQueue.enqueueVideo(async () => {
+    // Sequential: each scene uses the previous scene's completed video as reference
+    let prevVideoUrl: string | null = null;
+
+    for (const scene of toProcess) {
+      await generationQueue.enqueueVideo(async () => {
         const storeState = useProjectStore.getState();
         const freshScene = storeState.story?.scenes.find((sc) => sc.id === scene.id);
         if (!freshScene) return;
@@ -483,18 +492,24 @@ export function VideoStep() {
         const characters = storeState.story?.characters ?? [];
         const sceneChars = characters.filter((c) => freshScene.characterIds.includes(c.id));
 
-        const faceImageUrls = sceneChars
-          .map((c) => c.faceImage?.url)
-          .filter((u): u is string => !!u && u.startsWith("http"));
         const charSheetUrls = sceneChars
           .map((c) => c.characterSheet?.url)
           .filter((u): u is string => !!u && u.startsWith("http"));
-        const firstPanelUrl = freshScene.shots
+        const panelUrls = freshScene.shots
           .map((sh) => sh.storyboardPanel?.url)
-          .find((u): u is string => !!u && u.startsWith("http"));
-        const referenceImageUrls = [...faceImageUrls, ...charSheetUrls, ...(firstPanelUrl ? [firstPanelUrl] : [])].slice(0, 9);
+          .filter((u): u is string => !!u && u.startsWith("http"))
+          .slice(0, 3);
+        const referenceImageUrls = [...charSheetUrls, ...panelUrls].slice(0, 9);
+
+        const referenceLabels = [
+          ...sceneChars.filter((c) => c.characterSheet?.url?.startsWith("http")).map((c) => `${c.name} character sheet`),
+          ...panelUrls.map((_, i) => `scene storyboard panel ${i + 1}`),
+        ].slice(0, 9);
 
         if (referenceImageUrls.length === 0) return;
+
+        // Use previous completed scene's video for continuity
+        const referenceVideoUrls = prevVideoUrl ? [prevVideoUrl] : [];
 
         const shots = buildSceneShotsPayload(freshScene, characters);
         const totalDuration = Math.min(freshScene.shots.reduce((s, sh) => s + sh.duration, 0), 15);
@@ -507,6 +522,8 @@ export function VideoStep() {
             body: JSON.stringify({
               sceneId: scene.id,
               referenceImageUrls,
+              referenceLabels,
+              ...(referenceVideoUrls.length > 0 && { referenceVideoUrls }),
               shots,
               totalDuration,
               scene: { location: freshScene.location, timeOfDay: freshScene.timeOfDay },
@@ -519,11 +536,13 @@ export function VideoStep() {
           const { requestId, endpoint } = await res.json();
           const video = await pollVideo(requestId, endpoint);
           store.setSceneVideo(scene.id, video);
+          // Update prevVideoUrl for next scene
+          prevVideoUrl = video.url ?? null;
         } catch {
           store.setSceneVideoStatus(scene.id, "error");
         }
-      })
-    ));
+      });
+    }
 
     setGenerating(false);
   };

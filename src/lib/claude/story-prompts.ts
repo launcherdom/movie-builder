@@ -88,6 +88,7 @@ export const VIDEO_PROMPT_TOOL: Anthropic.Tool = {
               type: "object",
               required: ["shot", "subject", "scene", "visual_details", "cinematography", "audio"],
               properties: {
+                dialogue: { type: "string", description: "Exact character dialogue for lip-sync (verbatim from shot)" },
                 shot: {
                   type: "object",
                   required: ["composition", "lens", "camera_movement"],
@@ -246,6 +247,11 @@ Keep character descriptions detailed and visual — they will be used as image g
 Include age and gender for every character.
 Shot durations must be between 4 and 15 seconds (API minimum is 4s).
 
+Scene duration rules (CRITICAL):
+- Each scene's total duration (sum of all shot durations) must be 15 seconds or less.
+- This is a hard limit — Seedance 2.0 generates one video clip per scene, maximum 15s.
+- If a scene would naturally exceed 15 seconds, split it into multiple consecutive scenes at a natural dramatic beat (e.g. "Scene 3A", "Scene 3B").
+
 Camera direction rules (use exact film terminology — these map directly to Seedance camera movements):
 - Use: "dolly shot", "tracking shot", "orbit shot", "crane shot", "handheld", "slow zoom", "tilt", "static camera", "over-the-shoulder (OTS)", "slow pan"
 - Vary camera movements across shots — avoid repeating the same movement more than twice in a row.
@@ -308,12 +314,39 @@ export function parseStoryResponse(response: ClaudeResponse): Story {
     })),
   }));
 
+  // Safety: split any scene exceeding 15s into multiple scenes
+  const splitScenes: typeof scenes = [];
+  for (const scene of scenes) {
+    const total = scene.shots.reduce((s, sh) => s + sh.duration, 0);
+    if (total <= 15) {
+      splitScenes.push(scene);
+      continue;
+    }
+    // Split shots into 15s chunks
+    let chunk: typeof scene.shots = [];
+    let chunkDur = 0;
+    let partIdx = 0;
+    for (const shot of scene.shots) {
+      if (chunkDur + shot.duration > 15 && chunk.length > 0) {
+        splitScenes.push({ ...scene, id: partIdx === 0 ? scene.id : nanoid(), heading: `${scene.heading} (${partIdx + 1})`, shots: chunk, orderIndex: splitScenes.length });
+        partIdx++;
+        chunk = [];
+        chunkDur = 0;
+      }
+      chunk.push(shot);
+      chunkDur += shot.duration;
+    }
+    if (chunk.length > 0) {
+      splitScenes.push({ ...scene, id: partIdx === 0 ? scene.id : nanoid(), heading: `${scene.heading} (${partIdx + 1})`, shots: chunk, orderIndex: splitScenes.length });
+    }
+  }
+
   return {
     title: raw.title as string,
     logline: raw.logline as string,
     synopsis: raw.synopsis as string,
     characters,
-    scenes,
+    scenes: splitScenes.map((sc, i) => ({ ...sc, orderIndex: i })),
     totalDuration: raw.totalDuration as number,
   };
 }
@@ -336,17 +369,23 @@ ${charDescriptions}
 Reference images (@Image1, @Image2, ...) already contain the characters' exact appearance.
 DO NOT describe character appearance, hair, clothing, or physical features in the prompt — the reference images handle that. Text descriptions of appearance conflict with the reference images and reduce consistency.
 
+When describing character actions, use @Image tags as subject anchors:
+- GOOD: "@Image1 slowly turns to face the camera"
+- BAD: "The character turns to face the camera"
+This anchors Seedance 2.0's identity tracking to the specific reference image.
+
 For EACH shot, write a focused cinematic prompt that:
 1. Opens with camera framing (e.g. "A tight close-up", "An extreme wide shot", "A low-angle shot")
 2. Describes the setting with vivid sensory details (lighting, atmosphere, textures)
-3. Describes ACTION and MOTION in cinematic present tense (what characters DO, not how they look)
+3. Describes ACTION and MOTION in cinematic present tense using @Image tags as subjects
 4. Includes technical cinematography (film grain, lens characteristics, color grading)
 5. For dialogue shots: describes mouth movement and emotional expression
 
-subject.description = action/movement only (e.g. "walks forward", "turns to face camera")
-subject.wardrobe = leave empty or "as in reference image"
+subject.description = "@Image1 [action/movement only]" (e.g. "@Image1 walks forward", "@Image1 turns to camera")
+subject.wardrobe = "as in reference image"
+dialogue = exact spoken line (verbatim from the shot's dialogue field, for lip-sync)
 
-Write prompts for AI video generation — concrete, motion-focused, NO appearance descriptions.
+Keep each prompt under 200 words — Seedance performs best with concise, motion-focused prompts.
 
 Use the create_video_prompts tool to output all prompts.`;
 }
