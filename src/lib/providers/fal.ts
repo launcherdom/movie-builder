@@ -45,10 +45,15 @@ export class FalVideoProvider implements VideoProvider {
     const clampedDuration = Math.min(Math.max(Math.round(params.duration), 4), params.maxDuration);
     const durationValue = String(clampedDuration);
 
+    // Seedance requires reference images to be cited in the prompt as @Image1, @Image2, ...
+    const refs = params.reference_image_urls ?? [];
+    const imageRefs = refs.map((_, i) => `@Image${i + 1}`).join(" ");
+    const prompt = imageRefs ? `${imageRefs} ${params.prompt}` : params.prompt;
+
     const { request_id } = await fal.queue.submit(this.endpoint, {
       input: {
-        prompt: params.prompt,
-        reference_image_urls: params.reference_image_urls,
+        prompt,
+        reference_image_urls: refs,
         duration: durationValue,
         aspect_ratio: params.aspect_ratio ?? "9:16",
         ...(params.resolution && { resolution: params.resolution }),
