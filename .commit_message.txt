@@ -1,1 +1,1 @@
-Seedance 파라미터 고정: resolution 720p, generate_audio true, duration 4~15s 클램프
+씬 단위 영상 생성: 컷별이 아닌 씬별로 멀티타임스탬프 프롬프트 생성 (최대 15초 클램프)

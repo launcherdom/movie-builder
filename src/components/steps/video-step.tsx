@@ -4,7 +4,8 @@ import { useProjectStore } from "@/stores/project-store";
 import { useLangStore } from "@/stores/lang-store";
 import { VideoPromptEditor } from "@/components/video/video-prompt-editor";
 import { generationQueue } from "@/lib/generation/queue";
-import type { Shot, VideoPromptJson } from "@/types/movie";
+import type { Shot, Scene, VideoPromptJson, Character, GeneratedVideo } from "@/types/movie";
+import { CostBadge } from "@/components/ui/cost-badge";
 
 // Map common direction words to Seedance-recognized cinematic camera vocabulary
 function toCinematicMovement(raw?: string): string {
@@ -19,10 +20,18 @@ function toCinematicMovement(raw?: string): string {
   if (r.includes("tilt")) return "tilt";
   if (r.includes("crane") || r.includes("rise") || r.includes("descend")) return "crane shot";
   if (r.includes("static") || r.includes("lock")) return "static camera";
-  return raw; // pass through if already specific
+  return raw;
 }
 
-function buildDefaultVideoPromptJson(shot: Shot): VideoPromptJson {
+function buildDefaultVideoPromptJson(shot: Shot, sceneCharacters: Character[] = []): VideoPromptJson {
+  const charAnchors = sceneCharacters
+    .filter((c) => c.description)
+    .map((c) => c.description)
+    .join(" | ");
+  const subjectDescription = charAnchors
+    ? `${charAnchors}. ${shot.description}`
+    : shot.description;
+
   return {
     dialogue: shot.dialogue,
     shot: {
@@ -31,7 +40,7 @@ function buildDefaultVideoPromptJson(shot: Shot): VideoPromptJson {
       camera_movement: toCinematicMovement(shot.cameraDirection),
     },
     subject: {
-      description: shot.description,
+      description: subjectDescription,
       wardrobe: "as described in scene",
       props: "none",
     },
@@ -59,9 +68,6 @@ function buildDefaultVideoPromptJson(shot: Shot): VideoPromptJson {
   };
 }
 
-import type { GeneratedVideo } from "@/types/movie";
-import { CostBadge } from "@/components/ui/cost-badge";
-
 async function pollVideo(requestId: string, endpoint: string): Promise<GeneratedVideo> {
   while (true) {
     await new Promise((r) => setTimeout(r, 4000));
@@ -73,41 +79,77 @@ async function pollVideo(requestId: string, endpoint: string): Promise<Generated
   }
 }
 
-function ShotVideoCard({ shot, shotIndex, sceneCharacterIds }: { shot: Shot; shotIndex: number; sceneDescription?: string; sceneCharacterIds: string[] }) {
+function buildSceneShotsPayload(
+  scene: Scene,
+  characters: Character[]
+): Array<{ prompt: VideoPromptJson; startTime: number; endTime: number }> {
+  const sceneChars = characters.filter((c) => scene.characterIds.includes(c.id));
+  let cursor = 0;
+  return scene.shots.map((shot) => {
+    const start = cursor;
+    const end = cursor + shot.duration;
+    cursor = end;
+    const prompt = shot.videoPromptJson ?? buildDefaultVideoPromptJson(shot, sceneChars);
+    return { prompt, startTime: start, endTime: end };
+  });
+}
+
+function SceneVideoCard({
+  scene,
+  sceneIndex,
+}: {
+  scene: Scene;
+  sceneIndex: number;
+}) {
   const store = useProjectStore();
-  const { setShotVideo, setShotVideoStatus, setShotVideoPromptJson, qualityTier, aspectRatio, story } = store;
+  const { setSceneVideo, setSceneVideoStatus, qualityTier, aspectRatio, story } = store;
   const { t } = useLangStore();
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const json = shot.videoPromptJson ?? buildDefaultVideoPromptJson(shot);
+  const status = scene.sceneVideoStatus ?? "idle";
+  const isGenerating = status === "generating";
+
+  // Require at least one shot with a storyboard panel
+  const hasPanels = scene.shots.some((sh) => sh.storyboardPanel?.url?.startsWith("http"));
+  const totalDuration = Math.min(scene.shots.reduce((s, sh) => s + sh.duration, 0), 15);
 
   const handleGenerate = async () => {
-    const primaryImage = shot.storyboardPanel?.url;
-    if (!primaryImage) {
-      setError(t.video.noPanel);
+    if (!hasPanels) {
+      setError("Generate storyboard panels first");
       return;
     }
-    if (!shot.videoPromptJson) setShotVideoPromptJson(shot.id, json);
     setError(null);
-    setShotVideoStatus(shot.id, "generating");
+    setSceneVideoStatus(scene.id, "generating");
+
     try {
-      // Build reference image list: primary shot image + character sheets for this scene
-      const characterSheets = (story?.characters ?? [])
-        .filter((c) => sceneCharacterIds.includes(c.id) && c.characterSheet?.url?.startsWith("http"))
-        .map((c) => c.characterSheet!.url);
-      const referenceImageUrls = [primaryImage, ...characterSheets]
-        .filter((u) => u.startsWith("http"))
-        .slice(0, 9);
+      const characters = story?.characters ?? [];
+      const sceneChars = characters.filter((c) => scene.characterIds.includes(c.id));
+
+      // Reference images: all storyboard panels in the scene + character sheets
+      const panelUrls = scene.shots
+        .map((sh) => sh.storyboardPanel?.url)
+        .filter((u): u is string => !!u && u.startsWith("http"));
+      const charSheetUrls = sceneChars
+        .map((c) => c.characterSheet?.url)
+        .filter((u): u is string => !!u && u.startsWith("http"));
+      const referenceImageUrls = [...panelUrls, ...charSheetUrls].slice(0, 9);
+
+      if (referenceImageUrls.length === 0) {
+        throw new Error("No valid reference images");
+      }
+
+      const shots = buildSceneShotsPayload(scene, characters);
 
       const res = await fetch("/api/video/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          shotId: shot.id,
+          sceneId: scene.id,
           referenceImageUrls,
-          videoPromptJson: shot.videoPromptJson ?? json,
-          duration: shot.duration,
+          shots,
+          totalDuration,
+          scene: { location: scene.location, timeOfDay: scene.timeOfDay },
           qualityTier,
           aspectRatio,
           projectId: useProjectStore.getState().id,
@@ -116,35 +158,32 @@ function ShotVideoCard({ shot, shotIndex, sceneCharacterIds }: { shot: Shot; sho
       if (!res.ok) throw new Error(await res.text());
       const { requestId, endpoint } = await res.json();
       const video = await pollVideo(requestId, endpoint);
-      setShotVideo(shot.id, video);
+      setSceneVideo(scene.id, video);
     } catch (e) {
       setError(e instanceof Error ? e.message : t.video.errorFail);
-      setShotVideoStatus(shot.id, "error");
+      setSceneVideoStatus(scene.id, "error");
     }
   };
-
-  const isGeneratingVideo = shot.videoStatus === "generating";
-  const hasSourceImage = !!shot.storyboardPanel;
 
   return (
     <div style={{ marginBottom: 24, border: "1px solid var(--border)", borderRadius: "var(--radius-card)", overflow: "hidden", background: "var(--surface)" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 12, color: "var(--text-secondary)" }}>
-            SHOT {String(shotIndex + 1).padStart(2, "0")}
+          <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 12, color: "var(--accent)", letterSpacing: "0.08em" }}>
+            SCENE {String(sceneIndex + 1).padStart(2, "0")}
           </span>
-          <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, border: "1px solid var(--border-visible)", borderRadius: 4, padding: "1px 6px", color: "var(--text-primary)" }}>
-            {shot.shotType}
+          <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-primary)" }}>
+            {scene.heading}
           </span>
-          <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-disabled)" }}>
-            {shot.duration}S
+          <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, color: "var(--text-disabled)" }}>
+            {scene.shots.length} CUTS · {totalDuration}S
           </span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {shot.videoStatus !== "idle" && (
-            <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: shot.videoStatus === "done" ? "var(--success)" : shot.videoStatus === "error" ? "var(--accent)" : "var(--text-secondary)" }}>
-              [{shot.videoStatus.toUpperCase()}]
+          {status !== "idle" && (
+            <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: status === "done" ? "var(--success)" : status === "error" ? "var(--accent)" : "var(--text-secondary)" }}>
+              [{status.toUpperCase()}]
             </span>
           )}
           <button
@@ -155,7 +194,7 @@ function ShotVideoCard({ shot, shotIndex, sceneCharacterIds }: { shot: Shot; sho
           </button>
           <button
             onClick={handleGenerate}
-            disabled={isGeneratingVideo || !hasSourceImage}
+            disabled={isGenerating || !hasPanels}
             style={{
               fontFamily: "var(--font-space-mono), monospace",
               fontSize: 11,
@@ -163,28 +202,43 @@ function ShotVideoCard({ shot, shotIndex, sceneCharacterIds }: { shot: Shot; sho
               background: "transparent",
               border: "1px solid var(--border-visible)",
               borderRadius: "var(--radius-btn)",
-              color: (isGeneratingVideo || !hasSourceImage) ? "var(--text-disabled)" : "var(--text-primary)",
+              color: (isGenerating || !hasPanels) ? "var(--text-disabled)" : "var(--text-primary)",
               padding: "6px 16px",
-              cursor: (isGeneratingVideo || !hasSourceImage) ? "not-allowed" : "pointer",
+              cursor: (isGenerating || !hasPanels) ? "not-allowed" : "pointer",
             }}
           >
-            {isGeneratingVideo ? "[GENERATING...]" : "▶ GENERATE"}
+            {isGenerating ? "[GENERATING...]" : "▶ GENERATE"}
           </button>
         </div>
       </div>
 
-      {/* Image strip: storyboard → video */}
-      <div style={{ display: "flex" }}>
-        {shot.storyboardPanel && (
-          <div style={{ width: 140, flexShrink: 0, padding: 12, borderRight: "1px solid var(--border)" }}>
-            <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 9, color: "var(--text-disabled)", marginBottom: 6, letterSpacing: "0.08em" }}>BOARD</p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={shot.storyboardPanel.url} alt="storyboard" style={{ width: "100%", borderRadius: 4, opacity: 0.7 }} />
-          </div>
-        )}
-        {shot.videoClip && (
+      {/* Storyboard strip + video */}
+      <div style={{ display: "flex", gap: 0 }}>
+        {/* Shot thumbnails */}
+        <div style={{ display: "flex", gap: 0, borderRight: "1px solid var(--border)", overflow: "hidden" }}>
+          {scene.shots.map((shot, shi) => (
+            <div key={shot.id} style={{ width: 80, flexShrink: 0, padding: 8, borderRight: shi < scene.shots.length - 1 ? "1px solid var(--border)" : "none" }}>
+              <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 8, color: "var(--text-disabled)", marginBottom: 4, letterSpacing: "0.08em" }}>
+                {shot.shotType} {shot.duration}S
+              </p>
+              {shot.storyboardPanel ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={shot.storyboardPanel.url}
+                  alt={`shot ${shi + 1}`}
+                  style={{ width: "100%", borderRadius: 3, opacity: 0.75 }}
+                />
+              ) : (
+                <div style={{ width: "100%", aspectRatio: "9/16", background: "var(--border)", borderRadius: 3 }} />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Scene video */}
+        {scene.sceneVideoClip && (
           <div style={{ flex: 1, padding: 12 }}>
-            <video src={shot.videoClip.url} controls style={{ width: "100%", borderRadius: 4 }} />
+            <video src={scene.sceneVideoClip.url} controls style={{ width: "100%", borderRadius: 4 }} />
           </div>
         )}
       </div>
@@ -195,9 +249,24 @@ function ShotVideoCard({ shot, shotIndex, sceneCharacterIds }: { shot: Shot; sho
         </p>
       )}
 
+      {/* Expanded: per-shot prompt editors */}
       {expanded && (
-        <div style={{ padding: "0 20px 20px" }}>
-          <VideoPromptEditor shotId={shot.id} json={json} />
+        <div style={{ padding: "0 20px 20px", borderTop: "1px solid var(--border)" }}>
+          <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, color: "var(--text-disabled)", margin: "12px 0 8px", letterSpacing: "0.08em" }}>
+            SHOT PROMPTS (edit before generating)
+          </p>
+          {scene.shots.map((shot, shi) => (
+            <div key={shot.id} style={{ marginBottom: 16 }}>
+              <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, color: "var(--text-secondary)", marginBottom: 6 }}>
+                SHOT {String(shi + 1).padStart(2, "0")} [{shot.shotType}] {shot.duration}S
+                {shot.dialogue && ` — "${shot.dialogue}"`}
+              </p>
+              <VideoPromptEditor
+                shotId={shot.id}
+                json={shot.videoPromptJson ?? buildDefaultVideoPromptJson(shot, (story?.characters ?? []).filter((c) => scene.characterIds.includes(c.id)))}
+              />
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -205,7 +274,7 @@ function ShotVideoCard({ shot, shotIndex, sceneCharacterIds }: { shot: Shot; sho
 }
 
 export function VideoStep() {
-  const { story, setGenerating, qualityTier, aspectRatio, visualStyle } = useProjectStore();
+  const { story, setGenerating, qualityTier, aspectRatio } = useProjectStore();
   const { t } = useLangStore();
   const [assembling, setAssembling] = useState(false);
   const [assembledUrl, setAssembledUrl] = useState<string | null>(null);
@@ -225,9 +294,8 @@ export function VideoStep() {
     );
   }
 
-  const allShots = story.scenes.flatMap((sc) => sc.shots);
-  const doneClips = allShots.filter((sh) => sh.videoStatus === "done").length;
-  const readyClips = allShots.filter((sh) => sh.videoStatus === "done" && sh.videoClip);
+  const doneScenes = story.scenes.filter((sc) => sc.sceneVideoStatus === "done").length;
+  const readyScenes = story.scenes.filter((sc) => sc.sceneVideoStatus === "done" && sc.sceneVideoClip);
 
   const handleExportCapcut = async () => {
     setExporting(true);
@@ -266,7 +334,7 @@ export function VideoStep() {
         coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
         wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
       });
-      const clipUrls = readyClips.map((sh) => sh.videoClip!.url);
+      const clipUrls = readyScenes.map((sc) => sc.sceneVideoClip!.url);
       for (let i = 0; i < clipUrls.length; i++) {
         await ffmpeg.writeFile(`clip${i}.mp4`, await fetchFile(clipUrls[i]));
       }
@@ -327,59 +395,56 @@ export function VideoStep() {
 
   const handleGenerateAll = async () => {
     const store = useProjectStore.getState();
-    const allPairs = story.scenes.flatMap((sc) => sc.shots.map((sh) => ({ shot: sh, scene: sc })));
-    // Include shots that have at least a storyboard panel (keyframe optional)
-    const toProcess = allPairs.filter(({ shot }) => shot.videoStatus !== "done" && shot.storyboardPanel);
+    const toProcess = story.scenes.filter(
+      (sc) => sc.sceneVideoStatus !== "done" && sc.shots.some((sh) => sh.storyboardPanel?.url?.startsWith("http"))
+    );
 
     setGenerating(true, { current: 0, total: toProcess.length });
 
-    // Generate all videos (max 1 concurrent via queue)
-    for (let i = 0; i < toProcess.length; i++) {
-      const { shot, scene } = toProcess[i];
-      // Look ahead in full ordered sequence for next shot as transition reference
-      const shotIndexInAll = allPairs.findIndex((p) => p.shot.id === shot.id);
-      const nextShot = allPairs[shotIndexInAll + 1]?.shot;
-      const nextShotRef = nextShot?.keyframeImage?.url ?? nextShot?.storyboardPanel?.url;
-
+    for (const scene of toProcess) {
       await generationQueue.enqueueVideo(async () => {
         const storeState = useProjectStore.getState();
-        const freshShot = storeState.story?.scenes
-          .flatMap((sc) => sc.shots).find((sh) => sh.id === shot.id);
-        const primaryImage = freshShot?.storyboardPanel?.url;
-        if (!primaryImage || !freshShot) return;
+        const freshScene = storeState.story?.scenes.find((sc) => sc.id === scene.id);
+        if (!freshScene) return;
 
-        // Reference images: primary shot + character sheets + next shot (transition)
-        const characterSheets = (storeState.story?.characters ?? [])
-          .filter((c) => scene.characterIds.includes(c.id) && c.characterSheet?.url?.startsWith("http"))
-          .map((c) => c.characterSheet!.url);
-        const referenceImageUrls = [
-          primaryImage,
-          ...characterSheets,
-          ...(nextShotRef && nextShotRef.startsWith("http") ? [nextShotRef] : []),
-        ].filter((u) => u.startsWith("http")).slice(0, 9);
+        const characters = storeState.story?.characters ?? [];
+        const sceneChars = characters.filter((c) => freshScene.characterIds.includes(c.id));
 
-        const json = freshShot.videoPromptJson ?? buildDefaultVideoPromptJson(freshShot);
-        store.setShotVideoStatus(shot.id, "generating");
+        const panelUrls = freshScene.shots
+          .map((sh) => sh.storyboardPanel?.url)
+          .filter((u): u is string => !!u && u.startsWith("http"));
+        const charSheetUrls = sceneChars
+          .map((c) => c.characterSheet?.url)
+          .filter((u): u is string => !!u && u.startsWith("http"));
+        const referenceImageUrls = [...panelUrls, ...charSheetUrls].slice(0, 9);
+
+        if (referenceImageUrls.length === 0) return;
+
+        const shots = buildSceneShotsPayload(freshScene, characters);
+        const totalDuration = Math.min(freshScene.shots.reduce((s, sh) => s + sh.duration, 0), 15);
+
+        store.setSceneVideoStatus(scene.id, "generating");
         try {
           const res = await fetch("/api/video/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              shotId: shot.id,
+              sceneId: scene.id,
               referenceImageUrls,
-              videoPromptJson: json,
-              duration: shot.duration,
+              shots,
+              totalDuration,
+              scene: { location: freshScene.location, timeOfDay: freshScene.timeOfDay },
               qualityTier,
               aspectRatio,
               projectId: storeState.id,
             }),
           });
-          if (!res.ok) { store.setShotVideoStatus(shot.id, "error"); return; }
+          if (!res.ok) { store.setSceneVideoStatus(scene.id, "error"); return; }
           const { requestId, endpoint } = await res.json();
           const video = await pollVideo(requestId, endpoint);
-          store.setShotVideo(shot.id, video);
+          store.setSceneVideo(scene.id, video);
         } catch {
-          store.setShotVideoStatus(shot.id, "error");
+          store.setSceneVideoStatus(scene.id, "error");
         }
       });
     }
@@ -396,15 +461,15 @@ export function VideoStep() {
           </h1>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
             <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-secondary)", letterSpacing: "0.08em" }}>
-              {t.video.clips}
+              SCENES
             </span>
             <div style={{ display: "flex", gap: 2 }}>
-              {Array.from({ length: Math.min(allShots.length, 24) }).map((_, i) => (
-                <div key={i} style={{ width: 8, height: 8, background: i < doneClips ? "var(--success)" : "var(--border)" }} />
+              {story.scenes.map((sc, i) => (
+                <div key={i} style={{ width: 8, height: 8, background: sc.sceneVideoStatus === "done" ? "var(--success)" : sc.sceneVideoStatus === "generating" ? "var(--accent)" : "var(--border)" }} />
               ))}
             </div>
             <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-primary)" }}>
-              {doneClips} / {allShots.length}
+              {doneScenes} / {story.scenes.length}
             </span>
           </div>
         </div>
@@ -431,17 +496,10 @@ export function VideoStep() {
       </div>
 
       {story.scenes.map((scene, si) => (
-        <div key={scene.id} style={{ marginBottom: 40 }}>
-          <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, letterSpacing: "0.08em", color: "var(--accent)", marginBottom: 12 }}>
-            SCENE {String(si + 1).padStart(2, "0")} — {scene.heading}
-          </p>
-          {scene.shots.map((shot, shi) => (
-            <ShotVideoCard key={shot.id} shot={shot} shotIndex={shi} sceneDescription={scene.description} sceneCharacterIds={scene.characterIds} />
-          ))}
-        </div>
+        <SceneVideoCard key={scene.id} scene={scene} sceneIndex={si} />
       ))}
 
-      {/* CapCut export — available whenever any shots exist */}
+      {/* CapCut export */}
       <div style={{ marginTop: 32, display: "flex", justifyContent: "flex-end" }}>
         <button
           onClick={handleExportCapcut}
@@ -464,7 +522,7 @@ export function VideoStep() {
       </div>
 
       {/* Assembly section */}
-      {readyClips.length > 0 && (
+      {readyScenes.length > 0 && (
         <div style={{ marginTop: 48, borderTop: "1px solid var(--border-visible)", paddingTop: 32 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <div>
@@ -472,7 +530,7 @@ export function VideoStep() {
                 {t.video.assemble}
               </p>
               <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
-                {readyClips.length} CLIPS → CONCAT → MP4
+                {readyScenes.length} SCENES → CONCAT → MP4
               </p>
             </div>
             <button

@@ -126,6 +126,8 @@ export interface Scene {
   characterIds: string[];
   shots: Shot[];
   transitionTo: TransitionType;
+  sceneVideoClip?: GeneratedVideo;
+  sceneVideoStatus?: GenerationStatus;
 }
 
 // ─── Story ──────────────────────────────────────────────

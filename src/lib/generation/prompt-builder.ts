@@ -158,3 +158,79 @@ export function serializeVideoPrompt(p: VideoPromptJson, duration?: number): str
 
   return parts.join(" ");
 }
+
+/**
+ * Serialize multiple shots from a single scene into a multi-timestamp prompt for Seedance 2.0.
+ * Used for scene-level video generation where all cuts are combined into one clip.
+ *
+ * Format:
+ *   Style: cinematic, natural lighting.
+ *   [00-04s] CU shot, dolly. Subject description. Action. 【Dialogue lip-sync】"Line"
+ *   [04-09s] MS shot, tracking. Subject. Action.
+ *   Audio: music, ambient. Technical: color.
+ *   Location, timeOfDay.
+ */
+export function serializeSceneVideoPrompt(
+  shots: Array<{ prompt: VideoPromptJson; startTime: number; endTime: number }>,
+  scene: { location: string; timeOfDay: string }
+): string {
+  if (shots.length === 0) return "";
+
+  const parts: string[] = [];
+  const first = shots[0].prompt;
+
+  // 1. Style declaration (from first shot — same across scene)
+  const styleTokens = [
+    first.cinematography.tone && first.cinematography.tone !== "dramatic"
+      ? first.cinematography.tone
+      : "cinematic",
+    first.cinematography.lighting,
+  ].filter(Boolean);
+  parts.push(`Style: ${styleTokens.join(", ")}.`);
+
+  // 2. Per-shot timestamp blocks
+  for (const { prompt: p, startTime, endTime } of shots) {
+    const start = String(Math.round(startTime)).padStart(2, "0");
+    const end = String(Math.round(endTime)).padStart(2, "0");
+
+    const cameraTokens = [
+      p.shot.composition,
+      p.shot.camera_movement && p.shot.camera_movement !== "static camera"
+        ? p.shot.camera_movement
+        : null,
+      p.shot.lens && p.shot.lens !== "standard cinematic lens" ? p.shot.lens : null,
+    ].filter(Boolean);
+
+    const blockParts = [`[${start}-${end}s] ${cameraTokens.join(", ")}.`];
+
+    if (p.subject.description) blockParts.push(p.subject.description + ".");
+    if (p.visual_details.action && p.visual_details.action !== p.subject.description) {
+      blockParts.push(p.visual_details.action + ".");
+    }
+    if (p.dialogue && p.dialogue.trim()) {
+      blockParts.push(`【Dialogue lip-sync】"${p.dialogue.trim()}"`);
+    }
+
+    parts.push(blockParts.join(" "));
+  }
+
+  // 3. Audio (from first shot)
+  const audioTokens = [
+    first.audio.music && first.audio.music !== "background score" ? first.audio.music : null,
+    first.audio.ambient && first.audio.ambient !== "natural ambience" ? first.audio.ambient : null,
+    first.audio.sound_effects && first.audio.sound_effects !== "none"
+      ? first.audio.sound_effects
+      : null,
+  ].filter(Boolean);
+  if (audioTokens.length) parts.push("Audio: " + audioTokens.join(", ") + ".");
+
+  // 4. Technical: color palette
+  if (first.cinematography.color_palette && first.cinematography.color_palette !== "natural tones") {
+    parts.push(`Technical: ${first.cinematography.color_palette}.`);
+  }
+
+  // 5. Scene location
+  if (scene.location) parts.push(`${scene.location}, ${scene.timeOfDay}.`);
+
+  return parts.join(" ");
+}
