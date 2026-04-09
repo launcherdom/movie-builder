@@ -58,3 +58,8 @@ body {
   background-image: radial-gradient(circle, var(--border-visible) 1px, transparent 1px);
   background-size: 16px 16px;
 }
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

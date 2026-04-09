@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { useLangStore } from "@/stores/lang-store";
 import { VideoPromptEditor } from "@/components/video/video-prompt-editor";
+import { Skeleton } from "@/components/ui/skeleton";
 import { generationQueue } from "@/lib/generation/queue";
 import type { Shot, Scene, VideoPromptJson, Character, GeneratedVideo } from "@/types/movie";
 
@@ -237,11 +238,15 @@ function SceneVideoCard({
         </div>
 
         {/* Scene video */}
-        {scene.sceneVideoClip && (
+        {scene.sceneVideoClip ? (
           <div style={{ flex: 1, padding: 12 }}>
             <video src={scene.sceneVideoClip.url} controls style={{ width: "100%", borderRadius: 4 }} />
           </div>
-        )}
+        ) : isGenerating ? (
+          <div style={{ flex: 1, padding: 12 }}>
+            <Skeleton width="100%" height={200} borderRadius={4} />
+          </div>
+        ) : null}
       </div>
 
       {error && (

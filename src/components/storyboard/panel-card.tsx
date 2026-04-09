@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { Shot } from "@/types/movie";
 
 interface PanelCardProps {
@@ -63,9 +64,11 @@ export function PanelCard({ shot, aspectRatio }: PanelCardProps) {
             alt={shot.description}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
+        ) : shot.imageStatus === "generating" ? (
+          <Skeleton width="100%" height={panelHeight} borderRadius={4} />
         ) : (
           <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-disabled)" }}>
-            {shot.imageStatus === "generating" ? "[GENERATING...]" : "[IDLE]"}
+            [IDLE]
           </span>
         )}
       </div>

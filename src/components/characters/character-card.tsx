@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { persistAsset } from "@/lib/assets/persist";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { Character } from "@/types/movie";
 
 const labelStyle: React.CSSProperties = {
@@ -174,7 +175,22 @@ export function CharacterCard({ character, index }: CharacterCardProps) {
         </p>
       )}
 
-      {(character.characterSheet || character.faceImage) && (
+      {generating && (
+        <div style={{ padding: "0 20px 20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 12 }}>
+            <div>
+              <label style={{ ...labelStyle, marginBottom: 8 }}>Face Reference</label>
+              <Skeleton width={120} height={160} borderRadius={8} />
+            </div>
+            <div>
+              <label style={{ ...labelStyle, marginBottom: 8 }}>Character Sheet</label>
+              <Skeleton width="100%" height={240} borderRadius={8} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!generating && (character.characterSheet || character.faceImage) && (
         <div style={{ padding: "0 20px 20px" }}>
           {character.faceImage && character.characterSheet ? (
             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 12 }}>
