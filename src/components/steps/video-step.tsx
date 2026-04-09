@@ -398,14 +398,31 @@ export function VideoStep() {
     setSubtitleError(null);
     setSubtitledUrl(null);
     try {
-      // Server-side burn via /api/video/compose (uses native FFmpeg with bundled font)
+      const projectId = useProjectStore.getState().id;
+
+      // blob: URLs are browser-local and unreachable from the server.
+      // Re-upload to Vercel Blob first if the initial assembly upload failed.
+      let httpVideoUrl = videoUrl;
+      if (videoUrl.startsWith("blob:")) {
+        const blobRes = await fetch(videoUrl);
+        const blobContent = await blobRes.blob();
+        const uploaded = await upload(
+          `assembled/${projectId ?? "project"}/output.mp4`,
+          blobContent,
+          { access: "public", handleUploadUrl: "/api/assets/upload", contentType: "video/mp4" }
+        );
+        httpVideoUrl = uploaded.url;
+        setAssembledUrl(httpVideoUrl);
+      }
+
+      // Server-side burn via /api/video/compose (native FFmpeg + bundled DejaVu font)
       const res = await fetch("/api/video/compose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          videoUrl,
+          videoUrl: httpVideoUrl,
           srtContent: srt,
-          projectId: useProjectStore.getState().id,
+          projectId,
         }),
       });
       if (!res.ok) throw new Error(await res.text());
