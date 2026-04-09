@@ -32,7 +32,7 @@ interface CharacterCardProps {
 }
 
 export function CharacterCard({ character, index }: CharacterCardProps) {
-  const { updateCharacter, updateCharacterSheet, id: projectId } = useProjectStore();
+  const { updateCharacter, updateCharacterSheet, setCharacterFaceImage, id: projectId } = useProjectStore();
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,13 +46,25 @@ export function CharacterCard({ character, index }: CharacterCardProps) {
         body: JSON.stringify({ character }),
       });
       if (!res.ok) throw new Error(await res.text());
-      const { characterSheet } = await res.json() as { characterSheet: { url: string; width: number; height: number } };
+      const data = await res.json() as {
+        characterSheet: { url: string; width: number; height: number };
+        faceImage: { url: string; width: number; height: number } | null;
+      };
+      const { characterSheet, faceImage } = data;
       updateCharacterSheet(character.id, characterSheet);
+      if (faceImage) {
+        setCharacterFaceImage(character.id, faceImage);
+      }
       // Persist to Vercel Blob in background
       if (projectId) {
         persistAsset({ url: characterSheet.url, projectId, shotId: character.id, assetType: "character_sheet" })
           .then((blobUrl) => { if (blobUrl !== characterSheet.url) updateCharacterSheet(character.id, { ...characterSheet, url: blobUrl }); })
           .catch(() => {});
+        if (faceImage) {
+          persistAsset({ url: faceImage.url, projectId, shotId: `${character.id}_face`, assetType: "character_sheet" })
+            .then((blobUrl) => { if (blobUrl !== faceImage.url) setCharacterFaceImage(character.id, { ...faceImage, url: blobUrl }); })
+            .catch(() => {});
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Sheet generation failed");
@@ -162,15 +174,50 @@ export function CharacterCard({ character, index }: CharacterCardProps) {
         </p>
       )}
 
-      {character.characterSheet && (
+      {(character.characterSheet || character.faceImage) && (
         <div style={{ padding: "0 20px 20px" }}>
-          <label style={{ ...labelStyle, marginBottom: 8 }}>Character Sheet</label>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={character.characterSheet.url}
-            alt={`${character.name} character sheet`}
-            style={{ width: "100%", borderRadius: 8, border: "1px solid var(--border)" }}
-          />
+          {character.faceImage && character.characterSheet ? (
+            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 12 }}>
+              <div>
+                <label style={{ ...labelStyle, marginBottom: 8 }}>Face Reference</label>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={character.faceImage.url}
+                  alt={`${character.name} face close-up`}
+                  style={{ width: 120, borderRadius: 8, border: "1px solid var(--border)" }}
+                />
+              </div>
+              <div>
+                <label style={{ ...labelStyle, marginBottom: 8 }}>Character Sheet</label>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={character.characterSheet.url}
+                  alt={`${character.name} character sheet`}
+                  style={{ width: "100%", borderRadius: 8, border: "1px solid var(--border)" }}
+                />
+              </div>
+            </div>
+          ) : character.characterSheet ? (
+            <>
+              <label style={{ ...labelStyle, marginBottom: 8 }}>Character Sheet</label>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={character.characterSheet.url}
+                alt={`${character.name} character sheet`}
+                style={{ width: "100%", borderRadius: 8, border: "1px solid var(--border)" }}
+              />
+            </>
+          ) : character.faceImage ? (
+            <>
+              <label style={{ ...labelStyle, marginBottom: 8 }}>Face Reference</label>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={character.faceImage.url}
+                alt={`${character.name} face close-up`}
+                style={{ width: 120, borderRadius: 8, border: "1px solid var(--border)" }}
+              />
+            </>
+          ) : null}
         </div>
       )}
     </div>

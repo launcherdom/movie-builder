@@ -24,3 +24,16 @@ export function buildCharacterSheetPrompt(character: Character): string {
     character.description
   );
 }
+
+export const FACE_IMAGE_PROMPT_TEMPLATE = `A photorealistic, high-definition close-up portrait of a single character, shot from the shoulders up, centered on the face. Pure white background. Studio lighting, soft and even, with no harsh shadows. The face must be razor-sharp and fully visible: eyes, nose, lips, jawline, skin tone, and hair all rendered with maximum detail and clarity. Front-facing, neutral expression, slight head tilt allowed. This image will be used as an AI video generation face reference — facial accuracy is the only priority.
+
+Character: {CHARACTER_DESCRIPTION}
+
+Requirements: portrait orientation, white background, no text, no watermark, no props, no other characters.`;
+
+export function buildFaceImagePrompt(character: Character): string {
+  return FACE_IMAGE_PROMPT_TEMPLATE.replace(
+    "{CHARACTER_DESCRIPTION}",
+    character.description
+  );
+}

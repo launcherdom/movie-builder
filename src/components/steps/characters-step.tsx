@@ -31,8 +31,12 @@ export function CharactersStep() {
           body: JSON.stringify({ character: char }),
         });
         if (res.ok) {
-          const { characterSheet } = await res.json();
-          useProjectStore.getState().updateCharacterSheet(char.id, characterSheet);
+          const { characterSheet, faceImage } = await res.json();
+          const store = useProjectStore.getState();
+          store.updateCharacterSheet(char.id, characterSheet);
+          if (faceImage) {
+            store.setCharacterFaceImage(char.id, faceImage);
+          }
         }
       } catch {
         // continue with other characters

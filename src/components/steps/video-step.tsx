@@ -125,14 +125,17 @@ function SceneVideoCard({
       const characters = story?.characters ?? [];
       const sceneChars = characters.filter((c) => scene.characterIds.includes(c.id));
 
-      // Character sheets first (face identity), then first panel (composition reference)
+      // Face images first (strongest face identity), then character sheets, then first panel
+      const faceImageUrls = sceneChars
+        .map((c) => c.faceImage?.url)
+        .filter((u): u is string => !!u && u.startsWith("http"));
       const charSheetUrls = sceneChars
         .map((c) => c.characterSheet?.url)
         .filter((u): u is string => !!u && u.startsWith("http"));
       const firstPanelUrl = scene.shots
         .map((sh) => sh.storyboardPanel?.url)
         .find((u): u is string => !!u && u.startsWith("http"));
-      const referenceImageUrls = [...charSheetUrls, ...(firstPanelUrl ? [firstPanelUrl] : [])].slice(0, 9);
+      const referenceImageUrls = [...faceImageUrls, ...charSheetUrls, ...(firstPanelUrl ? [firstPanelUrl] : [])].slice(0, 9);
 
       if (referenceImageUrls.length === 0) {
         throw new Error("No valid reference images");
@@ -500,13 +503,16 @@ export function VideoStep() {
         const characters = storeState.story?.characters ?? [];
         const sceneChars = characters.filter((c) => freshScene.characterIds.includes(c.id));
 
+        const faceImageUrls = sceneChars
+          .map((c) => c.faceImage?.url)
+          .filter((u): u is string => !!u && u.startsWith("http"));
         const charSheetUrls = sceneChars
           .map((c) => c.characterSheet?.url)
           .filter((u): u is string => !!u && u.startsWith("http"));
         const firstPanelUrl = freshScene.shots
           .map((sh) => sh.storyboardPanel?.url)
           .find((u): u is string => !!u && u.startsWith("http"));
-        const referenceImageUrls = [...charSheetUrls, ...(firstPanelUrl ? [firstPanelUrl] : [])].slice(0, 9);
+        const referenceImageUrls = [...faceImageUrls, ...charSheetUrls, ...(firstPanelUrl ? [firstPanelUrl] : [])].slice(0, 9);
 
         if (referenceImageUrls.length === 0) return;
 
