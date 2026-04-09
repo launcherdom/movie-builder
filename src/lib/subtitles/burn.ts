@@ -70,12 +70,7 @@ export async function burnSubtitles(
 
     await new Promise<void>((resolve, reject) => {
       ffmpeg(videoPath)
-        .videoFilters(vf)
-        .outputOptions([
-          "-map", "0:v:0",
-          "-map", "0:a:0?",
-          "-c:a", "copy",
-        ])
+        .outputOptions(["-vf", vf, "-c:a", "copy"])
         .output(outputPath)
         .on("end", () => resolve())
         .on("error", (err) => reject(new Error(`FFmpeg error: ${err.message}`)))
