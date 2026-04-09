@@ -1,4 +1,4 @@
-import type { Story, Character } from "@/types/movie";
+import type { Story } from "@/types/movie";
 
 function formatSrtTimestamp(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -6,12 +6,6 @@ function formatSrtTimestamp(seconds: number): string {
   const s = Math.floor(seconds % 60);
   const ms = Math.round((seconds % 1) * 1000);
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")},${String(ms).padStart(3, "0")}`;
-}
-
-function getSpeakerName(speakerId: string | undefined, characters: Character[]): string | null {
-  if (!speakerId) return null;
-  const char = characters.find((c) => c.id === speakerId);
-  return char?.name ?? null;
 }
 
 export function buildSrtFromStory(story: Story): string {
@@ -29,10 +23,7 @@ export function buildSrtFromStory(story: Story): string {
         const displayDuration = Math.max(1, Math.min(5, shotDuration * 0.8));
         const end = start + displayDuration;
 
-        const speakerName = getSpeakerName(shot.speakerId, story.characters);
-        const line = speakerName
-          ? `[${speakerName.toUpperCase()}] ${shot.dialogue.trim()}`
-          : shot.dialogue.trim();
+        const line = shot.dialogue.trim();
 
         entries.push(
           `${idx}\n${formatSrtTimestamp(start)} --> ${formatSrtTimestamp(end)}\n${line}`
