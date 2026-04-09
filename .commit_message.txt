@@ -1,1 +1,1 @@
-자막 burn AAC 오디오 버퍼 에러 수정: -c:a copy → -c:a aac 재인코딩
+자막 burn 오디오 스트림 optional 매핑으로 AAC 버퍼 에러 수정
