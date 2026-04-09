@@ -27,6 +27,7 @@ export class FalImageProvider implements ImageProvider {
           strength: params.i2i_strength ?? 0.75,
           num_images: params.num_images ?? 1,
           output_format: params.output_format ?? "png",
+          ...(params.aspect_ratio ? { aspect_ratio: params.aspect_ratio } : {}),
           ...(params.image_urls?.length ? { image_urls: params.image_urls } : {}),
         },
       });
