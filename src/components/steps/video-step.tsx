@@ -100,8 +100,9 @@ function ShotVideoCard({ shot, shotIndex, sceneDescription }: { shot: Shot; shot
   };
 
   const handleGenerate = async () => {
-    if (!shot.keyframeImage) {
-      setError(t.video.noKeyframe);
+    const imageUrl = shot.keyframeImage?.url ?? shot.storyboardPanel?.url;
+    if (!imageUrl) {
+      setError(t.video.noPanel);
       return;
     }
     if (!shot.videoPromptJson) setShotVideoPromptJson(shot.id, json);
@@ -113,7 +114,7 @@ function ShotVideoCard({ shot, shotIndex, sceneDescription }: { shot: Shot; shot
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shotId: shot.id,
-          imageUrl: shot.keyframeImage.url,
+          imageUrl,
           videoPromptJson: shot.videoPromptJson ?? json,
           duration: shot.duration,
           qualityTier,
@@ -132,6 +133,7 @@ function ShotVideoCard({ shot, shotIndex, sceneDescription }: { shot: Shot; shot
 
   const isGeneratingKeyframe = shot.keyframeStatus === "generating";
   const isGeneratingVideo = shot.videoStatus === "generating";
+  const hasSourceImage = !!(shot.keyframeImage ?? shot.storyboardPanel);
 
   return (
     <div style={{ marginBottom: 24, border: "1px solid var(--border)", borderRadius: "var(--radius-card)", overflow: "hidden", background: "var(--surface)" }}>
@@ -181,7 +183,7 @@ function ShotVideoCard({ shot, shotIndex, sceneDescription }: { shot: Shot; shot
           {/* Video button */}
           <button
             onClick={handleGenerate}
-            disabled={isGeneratingVideo || isGeneratingKeyframe}
+            disabled={isGeneratingVideo || isGeneratingKeyframe || !hasSourceImage}
             style={{
               fontFamily: "var(--font-space-mono), monospace",
               fontSize: 11,
@@ -189,9 +191,9 @@ function ShotVideoCard({ shot, shotIndex, sceneDescription }: { shot: Shot; shot
               background: "transparent",
               border: "1px solid var(--border-visible)",
               borderRadius: "var(--radius-btn)",
-              color: isGeneratingVideo ? "var(--text-disabled)" : "var(--text-primary)",
+              color: (isGeneratingVideo || !hasSourceImage) ? "var(--text-disabled)" : "var(--text-primary)",
               padding: "6px 16px",
-              cursor: (isGeneratingVideo || isGeneratingKeyframe) ? "not-allowed" : "pointer",
+              cursor: (isGeneratingVideo || isGeneratingKeyframe || !hasSourceImage) ? "not-allowed" : "pointer",
             }}
           >
             {isGeneratingVideo ? "[GENERATING...]" : "▶ GENERATE"}
@@ -316,43 +318,18 @@ export function VideoStep() {
   const handleGenerateAll = async () => {
     const store = useProjectStore.getState();
     const allPairs = story.scenes.flatMap((sc) => sc.shots.map((sh) => ({ shot: sh, scene: sc })));
-    const toProcess = allPairs.filter(({ shot }) => shot.videoStatus !== "done" && shot.storyboardPanel);
+    // Include shots that have at least a storyboard panel (keyframe optional)
+    const toProcess = allPairs.filter(({ shot }) => shot.videoStatus !== "done" && (shot.storyboardPanel || shot.keyframeImage));
 
-    setGenerating(true, { current: 0, total: toProcess.length * 2 });
+    setGenerating(true, { current: 0, total: toProcess.length });
 
-    // Phase 1: Generate all missing keyframes (max 3 concurrent via queue)
-    await Promise.all(
-      toProcess.map(({ shot, scene }) =>
-        generationQueue.enqueueImage(async () => {
-          if (shot.keyframeImage) return;
-          store.setShotKeyframeStatus(shot.id, "generating");
-          const res = await fetch("/api/keyframe/generate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              shots: [shot],
-              sceneDescription: scene.description,
-              characters: story.characters,
-              qualityTier,
-              visualStyle,
-              aspectRatio,
-            }),
-          });
-          if (!res.ok) { store.setShotKeyframeStatus(shot.id, "error"); return; }
-          const { results } = await res.json();
-          const kr = results?.[0];
-          if (kr?.keyframe) store.setShotKeyframe(shot.id, kr.keyframe, kr.prompt);
-          else store.setShotKeyframeStatus(shot.id, "error");
-        })
-      )
-    );
-
-    // Phase 2: Generate all videos (max 1 concurrent via queue)
+    // Generate all videos (max 1 concurrent via queue), using keyframe > storyboard panel as source
     for (const { shot } of toProcess) {
       await generationQueue.enqueueVideo(async () => {
         const freshShot = useProjectStore.getState().story?.scenes
           .flatMap((sc) => sc.shots).find((sh) => sh.id === shot.id);
-        if (!freshShot?.keyframeImage) return;
+        const imageUrl = freshShot?.keyframeImage?.url ?? freshShot?.storyboardPanel?.url;
+        if (!imageUrl || !freshShot) return;
         const json = freshShot.videoPromptJson ?? buildDefaultVideoPromptJson(freshShot);
         store.setShotVideoStatus(shot.id, "generating");
         try {
@@ -361,7 +338,7 @@ export function VideoStep() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               shotId: shot.id,
-              imageUrl: freshShot.keyframeImage.url,
+              imageUrl,
               videoPromptJson: json,
               duration: shot.duration,
               qualityTier,
