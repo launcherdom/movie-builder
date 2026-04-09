@@ -73,51 +73,17 @@ async function pollVideo(requestId: string, endpoint: string): Promise<Generated
   }
 }
 
-function ShotVideoCard({ shot, shotIndex, sceneDescription, sceneCharacterIds }: { shot: Shot; shotIndex: number; sceneDescription: string; sceneCharacterIds: string[] }) {
+function ShotVideoCard({ shot, shotIndex, sceneCharacterIds }: { shot: Shot; shotIndex: number; sceneDescription?: string; sceneCharacterIds: string[] }) {
   const store = useProjectStore();
-  const { setShotVideo, setShotVideoStatus, setShotVideoPromptJson, setShotKeyframe, setShotKeyframeStatus, qualityTier, aspectRatio, visualStyle, story } = store;
+  const { setShotVideo, setShotVideoStatus, setShotVideoPromptJson, qualityTier, aspectRatio, story } = store;
   const { t } = useLangStore();
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const json = shot.videoPromptJson ?? buildDefaultVideoPromptJson(shot);
 
-  const handleGenerateKeyframe = async () => {
-    if (!shot.storyboardPanel) {
-      setError(t.video.noPanel);
-      return;
-    }
-    setError(null);
-    setShotKeyframeStatus(shot.id, "generating");
-    try {
-      const res = await fetch("/api/keyframe/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          shots: [shot],
-          sceneDescription,
-          characters: story?.characters ?? [],
-          qualityTier,
-          visualStyle,
-          aspectRatio,
-        }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const { results } = await res.json();
-      const r = results?.[0];
-      if (r?.keyframe) {
-        setShotKeyframe(shot.id, r.keyframe, r.prompt);
-      } else {
-        throw new Error("No keyframe returned");
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Keyframe generation failed");
-      setShotKeyframeStatus(shot.id, "error");
-    }
-  };
-
   const handleGenerate = async () => {
-    const primaryImage = shot.keyframeImage?.url ?? shot.storyboardPanel?.url;
+    const primaryImage = shot.storyboardPanel?.url;
     if (!primaryImage) {
       setError(t.video.noPanel);
       return;
@@ -157,9 +123,8 @@ function ShotVideoCard({ shot, shotIndex, sceneDescription, sceneCharacterIds }:
     }
   };
 
-  const isGeneratingKeyframe = shot.keyframeStatus === "generating";
   const isGeneratingVideo = shot.videoStatus === "generating";
-  const hasSourceImage = !!(shot.keyframeImage ?? shot.storyboardPanel);
+  const hasSourceImage = !!shot.storyboardPanel;
 
   return (
     <div style={{ marginBottom: 24, border: "1px solid var(--border)", borderRadius: "var(--radius-card)", overflow: "hidden", background: "var(--surface)" }}>
@@ -188,28 +153,9 @@ function ShotVideoCard({ shot, shotIndex, sceneDescription, sceneCharacterIds }:
           >
             {expanded ? "▲" : "▼"}
           </button>
-          {/* Keyframe button */}
-          <button
-            onClick={handleGenerateKeyframe}
-            disabled={isGeneratingKeyframe || isGeneratingVideo}
-            style={{
-              fontFamily: "var(--font-space-mono), monospace",
-              fontSize: 11,
-              letterSpacing: "0.06em",
-              background: "transparent",
-              border: `1px solid ${shot.keyframeImage ? "var(--success)" : "var(--border-visible)"}`,
-              borderRadius: "var(--radius-btn)",
-              color: isGeneratingKeyframe ? "var(--text-disabled)" : shot.keyframeImage ? "var(--success)" : "var(--text-primary)",
-              padding: "6px 14px",
-              cursor: (isGeneratingKeyframe || isGeneratingVideo) ? "not-allowed" : "pointer",
-            }}
-          >
-            {isGeneratingKeyframe ? t.video.generatingKeyframe : t.video.generateKeyframe}
-          </button>
-          {/* Video button */}
           <button
             onClick={handleGenerate}
-            disabled={isGeneratingVideo || isGeneratingKeyframe || !hasSourceImage}
+            disabled={isGeneratingVideo || !hasSourceImage}
             style={{
               fontFamily: "var(--font-space-mono), monospace",
               fontSize: 11,
@@ -219,7 +165,7 @@ function ShotVideoCard({ shot, shotIndex, sceneDescription, sceneCharacterIds }:
               borderRadius: "var(--radius-btn)",
               color: (isGeneratingVideo || !hasSourceImage) ? "var(--text-disabled)" : "var(--text-primary)",
               padding: "6px 16px",
-              cursor: (isGeneratingVideo || isGeneratingKeyframe || !hasSourceImage) ? "not-allowed" : "pointer",
+              cursor: (isGeneratingVideo || !hasSourceImage) ? "not-allowed" : "pointer",
             }}
           >
             {isGeneratingVideo ? "[GENERATING...]" : "▶ GENERATE"}
@@ -227,24 +173,13 @@ function ShotVideoCard({ shot, shotIndex, sceneDescription, sceneCharacterIds }:
         </div>
       </div>
 
-      {/* Image strip: storyboard → keyframe → video */}
+      {/* Image strip: storyboard → video */}
       <div style={{ display: "flex" }}>
         {shot.storyboardPanel && (
           <div style={{ width: 140, flexShrink: 0, padding: 12, borderRight: "1px solid var(--border)" }}>
             <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 9, color: "var(--text-disabled)", marginBottom: 6, letterSpacing: "0.08em" }}>BOARD</p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={shot.storyboardPanel.url} alt="storyboard" style={{ width: "100%", borderRadius: 4, opacity: 0.7 }} />
-          </div>
-        )}
-        {(shot.keyframeImage || shot.keyframeStatus === "generating") && (
-          <div style={{ width: 160, flexShrink: 0, padding: 12, borderRight: "1px solid var(--border)" }}>
-            <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 9, color: "var(--text-secondary)", marginBottom: 6, letterSpacing: "0.08em" }}>{t.video.keyframe}</p>
-            {shot.keyframeImage
-              ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={shot.keyframeImage.url} alt="keyframe" style={{ width: "100%", borderRadius: 4 }} />
-              : <div style={{ width: "100%", aspectRatio: "9/16", background: "var(--border)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 9, color: "var(--text-disabled)" }}>...</span>
-                </div>
-            }
           </div>
         )}
         {shot.videoClip && (
@@ -394,7 +329,7 @@ export function VideoStep() {
     const store = useProjectStore.getState();
     const allPairs = story.scenes.flatMap((sc) => sc.shots.map((sh) => ({ shot: sh, scene: sc })));
     // Include shots that have at least a storyboard panel (keyframe optional)
-    const toProcess = allPairs.filter(({ shot }) => shot.videoStatus !== "done" && (shot.storyboardPanel || shot.keyframeImage));
+    const toProcess = allPairs.filter(({ shot }) => shot.videoStatus !== "done" && shot.storyboardPanel);
 
     setGenerating(true, { current: 0, total: toProcess.length });
 
@@ -410,7 +345,7 @@ export function VideoStep() {
         const storeState = useProjectStore.getState();
         const freshShot = storeState.story?.scenes
           .flatMap((sc) => sc.shots).find((sh) => sh.id === shot.id);
-        const primaryImage = freshShot?.keyframeImage?.url ?? freshShot?.storyboardPanel?.url;
+        const primaryImage = freshShot?.storyboardPanel?.url;
         if (!primaryImage || !freshShot) return;
 
         // Reference images: primary shot + character sheets + next shot (transition)
