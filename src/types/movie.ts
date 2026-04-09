@@ -1,3 +1,14 @@
+// ─── Story Quality ───────────────────────────────────────
+export interface StoryQualityScores {
+  pacing: number;         // 1-10: narrative rhythm, shot timing variety
+  hooks: number;          // 1-10: opening hook, tension peaks, satisfying ending
+  dialogue: number;       // 1-10: naturalism, character voice distinction
+  visualClarity: number;  // 1-10: shot descriptions clear enough for image generation
+  continuity: number;     // 1-10: character/location/prop consistency across scenes
+  overallScore: number;   // weighted average
+  suggestions: string[];  // improvement suggestions (max 3)
+}
+
 // ─── Primitives ─────────────────────────────────────────
 export type QualityTier = "draft" | "standard" | "premium";
 export type AspectRatio = "9:16" | "16:9";
@@ -151,6 +162,7 @@ export type ProjectState = Project & {
   activeShotId: string | null;
   isGenerating: boolean;
   generationProgress: { current: number; total: number } | null;
+  storyQuality: StoryQualityScores | null;
 };
 
 // ─── Validators ─────────────────────────────────────────

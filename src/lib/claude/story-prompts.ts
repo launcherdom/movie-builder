@@ -152,6 +152,72 @@ export const VIDEO_PROMPT_TOOL: Anthropic.Tool = {
   },
 };
 
+export const EVALUATE_SCREENPLAY_TOOL: Anthropic.Tool = {
+  name: "evaluate_screenplay",
+  description: "Evaluate the screenplay quality across 5 cinematic dimensions",
+  input_schema: {
+    type: "object" as const,
+    required: ["pacing", "hooks", "dialogue", "visualClarity", "continuity", "overallScore", "suggestions"],
+    properties: {
+      pacing: { type: "number", description: "1-10: narrative rhythm, shot timing variety" },
+      hooks: { type: "number", description: "1-10: opening hook strength, tension peaks, ending satisfaction" },
+      dialogue: { type: "number", description: "1-10: naturalism, character voice distinction" },
+      visualClarity: { type: "number", description: "1-10: shot descriptions clear enough for AI image generation" },
+      continuity: { type: "number", description: "1-10: character/location/prop consistency across scenes" },
+      overallScore: { type: "number", description: "Weighted average score (0-10)" },
+      suggestions: {
+        type: "array",
+        items: { type: "string" },
+        description: "Up to 3 specific improvement suggestions",
+      },
+    },
+  },
+};
+
+export function buildEvaluationPrompt(story: Story, genre: Genre): string {
+  const genreWeights: Record<string, string> = {
+    thriller: "Pacing and hooks are most critical (×2 weight each).",
+    drama: "Dialogue and continuity are most critical (×2 weight each).",
+    comedy: "Hooks and dialogue are most critical (×2 weight each).",
+    romance: "Dialogue and pacing are most critical (×2 weight each).",
+    scifi: "Visual clarity and continuity are most critical (×2 weight each).",
+    fantasy: "Visual clarity and hooks are most critical (×2 weight each).",
+    horror: "Pacing and hooks are most critical (×2 weight each).",
+  };
+  const genreNote = genreWeights[genre] ?? "";
+
+  return `Evaluate this ${genre} short film screenplay for AI video production quality.
+${genreNote}
+Score each dimension 1-10. Provide up to 3 specific, actionable improvement suggestions.
+
+Title: ${story.title}
+Logline: ${story.logline}
+Scenes: ${story.scenes.length}, Total shots: ${story.scenes.flatMap((s) => s.shots).length}
+Total duration: ${story.totalDuration}s
+
+SYNOPSIS:
+${story.synopsis}
+
+CHARACTERS:
+${story.characters.map((c) => `- ${c.name} (${c.age ?? "?"}, ${c.gender ?? "?"}): ${c.description}`).join("\n")}
+
+SCENES SUMMARY:
+${story.scenes.map((sc, i) =>
+  `Scene ${i + 1}: ${sc.heading} — ${sc.shots.length} shots\n` +
+  sc.shots.map((sh) => `  [${sh.shotType}] ${sh.description}${sh.dialogue ? ` | "${sh.dialogue}"` : ""}`).join("\n")
+).join("\n")}
+
+Use the evaluate_screenplay tool to output your scores.`;
+}
+
+export function parseEvaluationResponse(response: ClaudeResponse): import("@/types/movie").StoryQualityScores | null {
+  const toolBlock = response.content.find(
+    (b) => b.type === "tool_use" && b.name === "evaluate_screenplay"
+  );
+  if (!toolBlock || !toolBlock.input) return null;
+  return toolBlock.input as import("@/types/movie").StoryQualityScores;
+}
+
 export function buildStorySystemPrompt(
   genre: Genre,
   tone: Tone,

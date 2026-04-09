@@ -91,8 +91,28 @@ const iconBtn: React.CSSProperties = {
   lineHeight: 1,
 };
 
+function QualityBar({ label, score }: { label: string; score: number }) {
+  const pct = Math.round((score / 10) * 100);
+  const color = score >= 8 ? "var(--success)" : score >= 6 ? "var(--text-primary)" : "var(--accent)";
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+        <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, color: "var(--text-secondary)", letterSpacing: "0.08em" }}>
+          {label.toUpperCase()}
+        </span>
+        <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, color }}>
+          {score}/10
+        </span>
+      </div>
+      <div style={{ height: 3, background: "var(--border)", borderRadius: 2 }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 2, transition: "width 0.4s ease" }} />
+      </div>
+    </div>
+  );
+}
+
 export function StoryStep() {
-  const { story, setCurrentStep, updateScene, updateShotField, addScene, removeScene, addShot, removeShot, duplicateShot } = useProjectStore();
+  const { story, storyQuality, setCurrentStep, updateScene, updateShotField, addScene, removeScene, addShot, removeShot, duplicateShot } = useProjectStore();
   const { t } = useLangStore();
 
   if (!story) {
@@ -233,6 +253,32 @@ export function StoryStep() {
 
         {/* Right: character list */}
         <div>
+          {storyQuality && (
+            <div style={{ marginBottom: 28, padding: "16px 20px", border: "1px solid var(--border)", borderRadius: "var(--radius-card)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, color: "var(--text-secondary)", letterSpacing: "0.08em" }}>
+                  QUALITY SCORE
+                </span>
+                <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 13, color: storyQuality.overallScore >= 7 ? "var(--success)" : "var(--accent)" }}>
+                  {storyQuality.overallScore.toFixed(1)}/10
+                </span>
+              </div>
+              <QualityBar label="Pacing" score={storyQuality.pacing} />
+              <QualityBar label="Hooks" score={storyQuality.hooks} />
+              <QualityBar label="Dialogue" score={storyQuality.dialogue} />
+              <QualityBar label="Visual Clarity" score={storyQuality.visualClarity} />
+              <QualityBar label="Continuity" score={storyQuality.continuity} />
+              {storyQuality.suggestions.length > 0 && (
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+                  {storyQuality.suggestions.map((s, i) => (
+                    <p key={i} style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, color: "var(--text-secondary)", marginBottom: 4, lineHeight: 1.5 }}>
+                      {String(i + 1).padStart(2, "0")}. {s}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, letterSpacing: "0.08em", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 16 }}>
             {t.story.characters} — {story.characters.length}
           </p>

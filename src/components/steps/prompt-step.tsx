@@ -111,9 +111,14 @@ export function PromptStep() {
         buf = lines.pop() ?? "";
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
-          const evt = JSON.parse(line.slice(6)) as { status: string; message?: string; story?: unknown; error?: string };
+          const evt = JSON.parse(line.slice(6)) as { status: string; message?: string; story?: unknown; scores?: unknown; error?: string };
           if (evt.status === "thinking" && evt.message) {
             setGeneratingMessage(evt.message);
+          } else if (evt.status === "evaluating" && evt.message) {
+            setGeneratingMessage(evt.message);
+          } else if (evt.status === "quality" && evt.scores) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            useProjectStore.getState().setStoryQuality(evt.scores as any);
           } else if (evt.status === "done" && evt.story) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             useProjectStore.getState().setStory(evt.story as any);

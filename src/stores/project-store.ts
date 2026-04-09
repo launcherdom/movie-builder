@@ -18,6 +18,7 @@ import type {
   Tone,
   AspectRatio,
   VisualStyle,
+  StoryQualityScores,
 } from "@/types/movie";
 
 interface ProjectActions {
@@ -51,6 +52,7 @@ interface ProjectActions {
   setActiveScene: (id: string | null) => void;
   setActiveShot: (id: string | null) => void;
   setGenerating: (generating: boolean, progress?: { current: number; total: number }) => void;
+  setStoryQuality: (scores: StoryQualityScores) => void;
   reset: () => void;
 }
 
@@ -73,6 +75,7 @@ const initialState: ProjectState = {
   activeShotId: null,
   isGenerating: false,
   generationProgress: null,
+  storyQuality: null,
 };
 
 function updateShot(state: ProjectState, shotId: string, patch: Partial<Shot>): Partial<ProjectStore> {
@@ -411,6 +414,8 @@ function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectSto
       isGenerating: generating,
       generationProgress: progress ?? null,
     }),
+
+    setStoryQuality: (scores) => set({ storyQuality: scores }),
 
     reset: () => set(initialState),
   };
