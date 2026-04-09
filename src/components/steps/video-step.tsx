@@ -268,6 +268,11 @@ export function VideoStep() {
   const [assembledUrl, setAssembledUrl] = useState<string | null>(null);
   const [assembleError, setAssembleError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [srt, setSrt] = useState<string | null>(null);
+  const [generatingSrt, setGeneratingSrt] = useState(false);
+  const [burningSubtitles, setBurningSubtitles] = useState(false);
+  const [subtitledUrl, setSubtitledUrl] = useState<string | null>(null);
+  const [subtitleError, setSubtitleError] = useState<string | null>(null);
 
   if (!story) {
     return (
@@ -330,6 +335,50 @@ export function VideoStep() {
       setAssembleError(e instanceof Error ? e.message : t.video.assemblyFail);
     } finally {
       setAssembling(false);
+    }
+  };
+
+  const handleGenerateSrt = async () => {
+    setGeneratingSrt(true);
+    setSubtitleError(null);
+    try {
+      const res = await fetch("/api/subtitles/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ story }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { srt: generated } = await res.json();
+      setSrt(generated);
+    } catch (e) {
+      setSubtitleError(e instanceof Error ? e.message : "SRT generation failed");
+    } finally {
+      setGeneratingSrt(false);
+    }
+  };
+
+  const handleBurnSubtitles = async (videoUrl: string) => {
+    if (!srt) return;
+    setBurningSubtitles(true);
+    setSubtitleError(null);
+    setSubtitledUrl(null);
+    try {
+      const res = await fetch("/api/video/compose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoUrl,
+          srtContent: srt,
+          projectId: useProjectStore.getState().id,
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { url } = await res.json();
+      setSubtitledUrl(url);
+    } catch (e) {
+      setSubtitleError(e instanceof Error ? e.message : "Subtitle burn failed");
+    } finally {
+      setBurningSubtitles(false);
     }
   };
 
@@ -539,6 +588,106 @@ export function VideoStep() {
                 >
                   {exporting ? "[EXPORTING...]" : "EXPORT TO CAPCUT"}
                 </button>
+              </div>
+
+              {/* Subtitle section */}
+              <div style={{ marginTop: 24, paddingTop: 24, borderTop: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-secondary)", letterSpacing: "0.08em" }}>
+                    SUBTITLES
+                  </p>
+                  <button
+                    onClick={handleGenerateSrt}
+                    disabled={generatingSrt}
+                    style={{
+                      fontFamily: "var(--font-space-mono), monospace",
+                      fontSize: 11,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      background: "transparent",
+                      border: "1px solid var(--border-visible)",
+                      borderRadius: "var(--radius-btn)",
+                      color: generatingSrt ? "var(--text-disabled)" : "var(--text-primary)",
+                      padding: "6px 16px",
+                      cursor: generatingSrt ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {generatingSrt ? "[GENERATING...]" : "GENERATE SUBTITLES"}
+                  </button>
+                </div>
+
+                {srt !== null && (
+                  <>
+                    <textarea
+                      value={srt}
+                      onChange={(e) => setSrt(e.target.value)}
+                      rows={8}
+                      style={{
+                        width: "100%",
+                        fontFamily: "var(--font-space-mono), monospace",
+                        fontSize: 11,
+                        background: "var(--surface)",
+                        border: "1px solid var(--border-visible)",
+                        borderRadius: "var(--radius-card)",
+                        color: "var(--text-primary)",
+                        padding: "12px",
+                        resize: "vertical",
+                        marginBottom: 12,
+                        boxSizing: "border-box",
+                      }}
+                      spellCheck={false}
+                    />
+                    <button
+                      onClick={() => handleBurnSubtitles(assembledUrl)}
+                      disabled={burningSubtitles || !srt.trim()}
+                      style={{
+                        fontFamily: "var(--font-space-mono), monospace",
+                        fontSize: 12,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        background: burningSubtitles ? "var(--border)" : "var(--text-display)",
+                        color: burningSubtitles ? "var(--text-disabled)" : "var(--black)",
+                        border: "none",
+                        borderRadius: "var(--radius-btn)",
+                        padding: "10px 28px",
+                        cursor: burningSubtitles ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {burningSubtitles ? "[BURNING...]" : "BURN SUBTITLES"}
+                    </button>
+                  </>
+                )}
+
+                {subtitleError && (
+                  <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--accent)", marginTop: 8 }}>
+                    [ERROR: {subtitleError}]
+                  </p>
+                )}
+
+                {subtitledUrl && (
+                  <div style={{ marginTop: 16 }}>
+                    <video src={subtitledUrl} controls style={{ width: "100%", borderRadius: "var(--radius-card)", marginBottom: 12 }} />
+                    <a
+                      href={subtitledUrl}
+                      download="movie_subtitled.mp4"
+                      style={{
+                        display: "inline-block",
+                        fontFamily: "var(--font-space-mono), monospace",
+                        fontSize: 12,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        background: "transparent",
+                        border: "1px solid var(--border-visible)",
+                        borderRadius: "var(--radius-btn)",
+                        color: "var(--text-primary)",
+                        padding: "10px 28px",
+                        textDecoration: "none",
+                      }}
+                    >
+                      DOWNLOAD WITH SUBTITLES
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
           )}

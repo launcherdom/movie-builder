@@ -1,1 +1,1 @@
-Phase C: Claude 스토리 품질 루브릭 5차원 평가 + 자동 재생성 + 점수 UI
+Phase D: SRT 자막 생성 + fluent-ffmpeg 서버 번 + 자막 포함 영상 다운로드 UI
