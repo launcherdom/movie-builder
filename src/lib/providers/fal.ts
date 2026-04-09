@@ -15,20 +15,37 @@ export class FalImageProvider implements ImageProvider {
   constructor(private readonly falEndpoint: string) {}
 
   async generateImages(params: ImageGenerateParams): Promise<GeneratedImage[]> {
-    const input: Record<string, unknown> = {
-      prompt: params.prompt,
-      num_images: params.num_images ?? 1,
-      aspect_ratio: params.aspect_ratio,
-      output_format: params.output_format ?? "png",
-      resolution: params.resolution ?? "1K",
-    };
-    if (params.image_urls && params.image_urls.length > 0) {
-      input.image_urls = params.image_urls;
+    let result: Awaited<ReturnType<typeof fal.subscribe>>;
+
+    if (params.i2i_image_url) {
+      // Image-to-image: use the /edit endpoint with source image + prompt
+      const editEndpoint = `${this.falEndpoint}/edit`;
+      result = await fal.subscribe(editEndpoint, {
+        input: {
+          image_url: params.i2i_image_url,
+          prompt: params.prompt,
+          strength: params.i2i_strength ?? 0.75,
+          num_images: params.num_images ?? 1,
+          output_format: params.output_format ?? "png",
+          ...(params.image_urls?.length ? { image_urls: params.image_urls } : {}),
+        },
+      });
+    } else {
+      // Text-to-image: use the base endpoint
+      const input: Record<string, unknown> = {
+        prompt: params.prompt,
+        num_images: params.num_images ?? 1,
+        aspect_ratio: params.aspect_ratio,
+        output_format: params.output_format ?? "png",
+        resolution: params.resolution ?? "1K",
+      };
+      if (params.image_urls && params.image_urls.length > 0) {
+        input.image_urls = params.image_urls;
+      }
+      result = await fal.subscribe(this.falEndpoint, { input });
     }
 
-    const result = await fal.subscribe(this.falEndpoint, { input });
     const data = result.data as { images: Array<{ url: string; width: number; height: number }> };
-
     return (data.images ?? []).map((img) => ({
       url: img.url,
       width: img.width,

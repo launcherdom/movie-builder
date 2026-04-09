@@ -11,6 +11,9 @@ export interface ImageGenerateParams {
   output_format?: string;
   resolution?: string;
   image_urls?: string[];
+  // Image-to-image editing: when set, uses the /edit endpoint
+  i2i_image_url?: string;
+  i2i_strength?: number; // 0–1, higher = more deviation from source (default 0.75)
 }
 
 export interface ImageProvider {

@@ -30,34 +30,40 @@ export async function POST(request: NextRequest) {
       .filter((c) => c.characterSheet?.url?.startsWith("http"))
       .map((c) => c.characterSheet!.url);
 
-    // Style reference + previous scene's last panel + character sheets as image_urls
-    // previousPanelUrl comes first so the model anchors to the visual continuity frame
-    const refUrls = [
-      ...(previousPanelUrl && previousPanelUrl.startsWith("http") ? [previousPanelUrl] : []),
+    // Character sheets + style reference as supporting refs (not the i2i base)
+    const supportingRefs = [
       ...(referenceImageUrl && referenceImageUrl.startsWith("http") ? [referenceImageUrl] : []),
       ...characterSheetUrls,
     ];
 
-    // Generate all shots in parallel
-    const results = await Promise.all(
-      shots.map(async (shot) => {
-        const structured = buildStoryboardPrompt(shot, scene, characters, visualStyle, styleAnalysis);
-        const prompt = serializeImagePrompt(structured);
-        try {
-          const images = await provider.generateImages({
-            prompt,
-            num_images: 1,
-            aspect_ratio: aspectRatio,
-            output_format: "png",
-            resolution: "1K",
-            image_urls: refUrls.length > 0 ? refUrls : undefined,
-          });
-          return { shotId: shot.id, panel: images[0] ?? null, prompt };
-        } catch {
-          return { shotId: shot.id, panel: null, prompt };
-        }
-      })
-    );
+    // Generate shots sequentially: each shot uses the previous shot's output as i2i base
+    // This chains visual continuity through the whole scene (and across scenes via previousPanelUrl)
+    const results: Array<{ shotId: string; panel: { url: string; width: number; height: number } | null; prompt: string }> = [];
+    let prevImageUrl: string | undefined = previousPanelUrl?.startsWith("http") ? previousPanelUrl : undefined;
+
+    for (const shot of shots) {
+      const structured = buildStoryboardPrompt(shot, scene, characters, visualStyle, styleAnalysis);
+      const prompt = serializeImagePrompt(structured);
+      try {
+        const images = await provider.generateImages({
+          prompt,
+          num_images: 1,
+          aspect_ratio: aspectRatio,
+          output_format: "png",
+          resolution: "1K",
+          // i2i: use previous panel as source image for continuity
+          ...(prevImageUrl
+            ? { i2i_image_url: prevImageUrl, i2i_strength: 0.75, image_urls: supportingRefs.length > 0 ? supportingRefs : undefined }
+            : { image_urls: supportingRefs.length > 0 ? supportingRefs : undefined }
+          ),
+        });
+        const panel = images[0] ?? null;
+        results.push({ shotId: shot.id, panel, prompt });
+        if (panel?.url) prevImageUrl = panel.url;
+      } catch {
+        results.push({ shotId: shot.id, panel: null, prompt });
+      }
+    }
 
     return Response.json({ results });
   } catch (error) {
