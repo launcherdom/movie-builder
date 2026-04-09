@@ -65,7 +65,7 @@ export async function burnSubtitles(
     await new Promise<void>((resolve, reject) => {
       ffmpeg(videoPath)
         .videoFilters(`subtitles='${escapedSrt}':force_style='${forceStyle}'`)
-        .outputOptions(["-c:a copy"])
+        .outputOptions(["-c:a aac", "-b:a 128k"])
         .output(outputPath)
         .on("end", () => resolve())
         .on("error", (err) => reject(err))
