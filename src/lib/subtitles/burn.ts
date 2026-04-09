@@ -18,9 +18,11 @@ function parseSrtTime(ts: string): number {
   return h * 3600 + m * 60 + s + Number(ms) / 1000;
 }
 
-function srtToDrawtextFilter(srtContent: string, fontSize = 12): string {
+function srtToDrawtextFilter(srtContent: string, fontPath: string, fontSize = 12): string {
   const esc = (t: string) =>
     t.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/:/g, "\\:").replace(/\[/g, "\\[").replace(/\]/g, "\\]");
+  // fontfile path also needs colon escaping for FFmpeg filter syntax
+  const escapedFont = fontPath.replace(/\\/g, "\\\\").replace(/:/g, "\\:");
 
   const filters = srtContent
     .trim()
@@ -33,7 +35,7 @@ function srtToDrawtextFilter(srtContent: string, fontSize = 12): string {
       const start = parseSrtTime(times[0]).toFixed(3);
       const end = parseSrtTime(times[1]).toFixed(3);
       const text = esc(lines.slice(2).join(" "));
-      return `drawtext=text='${text}':enable='between(t,${start},${end})':fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=0x00000099:boxborderw=8:x=(w-tw)/2:y=h-th-50`;
+      return `drawtext=fontfile='${escapedFont}':text='${text}':enable='between(t,${start},${end})':fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=0x00000099:boxborderw=8:x=(w-tw)/2:y=h-th-50`;
     })
     .filter(Boolean);
 
@@ -57,7 +59,9 @@ export async function burnSubtitles(
     const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
     await fs.writeFile(videoPath, videoBuffer);
 
-    const vf = srtToDrawtextFilter(srtContent, fontSize);
+    // Font bundled in public/fonts — accessible via filesystem in Vercel serverless
+    const fontPath = path.join(process.cwd(), "public", "fonts", "DejaVuSans.ttf");
+    const vf = srtToDrawtextFilter(srtContent, fontPath, fontSize);
     if (!vf) throw new Error("No subtitle entries found in SRT");
 
     await new Promise<void>((resolve, reject) => {
