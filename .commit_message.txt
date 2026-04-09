@@ -1,1 +1,1 @@
-feat: 콘티 흑백 만화 스타일 전환, 로고 클릭 홈 이동
+feat: Seedance duration을 auto로 변경하여 모델이 최적 길이 자동 결정

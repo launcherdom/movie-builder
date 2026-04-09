@@ -59,9 +59,8 @@ export class FalVideoProvider implements VideoProvider {
   constructor(public readonly endpoint: string) {}
 
   async submitVideo(params: VideoSubmitParams): Promise<VideoSubmitResult> {
-    // Seedance reference-to-video: duration must be 4–15s
-    const clampedDuration = Math.min(Math.max(Math.round(params.duration), 4), params.maxDuration);
-    const durationValue = String(clampedDuration);
+    // Seedance: "auto" lets the model decide the optimal duration based on the prompt
+    const durationValue = "auto";
 
     // Seedance requires reference images/videos cited in prompt as @Image1, @Video1, etc.
     const refs = params.reference_image_urls ?? [];
