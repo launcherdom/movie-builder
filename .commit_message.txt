@@ -1,1 +1,1 @@
-character sheet: generate all in parallel instead of sequential
+fix: allow overwrite on Vercel Blob upload for assembled video
