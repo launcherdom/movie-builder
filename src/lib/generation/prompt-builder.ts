@@ -7,12 +7,7 @@ const STYLE_CINEMATIC_PREFIX: Record<VisualStyle, string> = {
   comic: "High-quality comic book illustration, vivid colors, bold lines, detailed artwork.",
 };
 
-const STYLE_STORYBOARD_PREFIX: Record<VisualStyle, string> = {
-  realistic: "Cinematic storyboard panel, rough sketch style, clear composition.",
-  cinematic: "Professional storyboard panel, dramatic composition, clear staging.",
-  anime: "Anime storyboard panel, expressive linework, dynamic poses.",
-  comic: "Comic panel storyboard, bold panels, clear action beats.",
-};
+const STORYBOARD_PREFIX = "Black and white manga panel, crisp ink lines, high contrast, dramatic shadows, clean composition, no color, no text, no dialogue bubbles, no captions.";
 
 function resolveCharacters(shot: Shot, characters: Character[]): Character[] {
   const shotChars = characters.filter((c) =>
@@ -32,16 +27,13 @@ export function buildStoryboardPrompt(
   styleAnalysis?: string
 ): ImagePromptJson {
   const relevant = resolveCharacters(shot, characters);
-  const stylePrefix = STYLE_STORYBOARD_PREFIX[visualStyle] ?? STYLE_STORYBOARD_PREFIX.realistic;
 
   return {
-    composition: `${stylePrefix} ${shot.shotType} shot. ${shot.description}.`,
+    composition: `${STORYBOARD_PREFIX} ${shot.shotType} shot. ${shot.description}.`,
     subject: relevant.map((c) => c.description).join(". "),
     environment: scene.description,
-    cinematography: styleAnalysis
-      ? `Cinematic lighting. ${styleAnalysis}`
-      : "Cinematic lighting, balanced exposure.",
-    negative: "blur, watermark, text overlay, low quality, distorted faces",
+    cinematography: "High contrast ink shadows, dramatic black and white tones, manga-style shading.",
+    negative: "color, text, speech bubbles, captions, watermark, blur, low quality, grayscale gradient without contrast",
   };
 }
 

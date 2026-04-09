@@ -2,6 +2,7 @@
 import { useProjectStore } from "@/stores/project-store";
 import { useLangStore } from "@/stores/lang-store";
 import type { PipelineStep } from "@/types/movie";
+import Link from "next/link";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PromptStep } from "@/components/steps/prompt-step";
 import { StoryStep } from "@/components/steps/story-step";
@@ -51,16 +52,18 @@ export function MovieApp() {
           zIndex: 50,
         }}
       >
-        <span
+        <Link
+          href="/"
           style={{
             fontFamily: "var(--font-space-mono), monospace",
             fontSize: 13,
             letterSpacing: "0.06em",
             color: "var(--text-display)",
+            textDecoration: "none",
           }}
         >
           🎬 {t.appTitle}
-        </span>
+        </Link>
 
         <nav style={{ display: "flex", gap: 32, alignItems: "center" }}>
           {STEP_KEYS.map((key) => {
