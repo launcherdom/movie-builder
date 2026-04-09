@@ -53,14 +53,18 @@ export async function burnSubtitles(
   const videoPath = path.join(tmpDir, "input.mp4");
   const outputPath = path.join(tmpDir, "output.mp4");
 
+  const fontPath = path.join(tmpDir, "font.ttf");
+
   try {
+    // Download video
     const videoRes = await fetch(videoUrl);
     if (!videoRes.ok) throw new Error(`Failed to fetch video: ${videoRes.status}`);
-    const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
-    await fs.writeFile(videoPath, videoBuffer);
+    await fs.writeFile(videoPath, Buffer.from(await videoRes.arrayBuffer()));
 
-    // Font bundled in public/fonts — accessible via filesystem in Vercel serverless
-    const fontPath = path.join(process.cwd(), "public", "fonts", "DejaVuSans.ttf");
+    // Copy font into tmpDir so FFmpeg gets a simple local path with no special chars
+    const fontSrc = path.join(process.cwd(), "public", "fonts", "DejaVuSans.ttf");
+    await fs.copyFile(fontSrc, fontPath);
+
     const vf = srtToDrawtextFilter(srtContent, fontPath, fontSize);
     if (!vf) throw new Error("No subtitle entries found in SRT");
 
