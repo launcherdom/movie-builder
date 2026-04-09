@@ -1,1 +1,1 @@
-자막 burn WASM: AAC 인코더 크래시 수정 - aac 인코딩 제거 후 오디오 복사로 전환
+자막 burn WASM: 2단계 처리 추가 - H.264 정규화 후 drawtext 적용으로 디코딩 오류 수정
