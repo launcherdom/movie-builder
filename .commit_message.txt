@@ -1,1 +1,1 @@
-자막 burn: WASM OOM 한계로 서버 사이드로 전환, DejaVuSans 폰트 번들로 drawtext fontfile 명시
+영상 캐릭터 일관성: 텍스트 외모 설명 제거, 레퍼런스 이미지 라벨 매핑으로 @Image 역할 명시
