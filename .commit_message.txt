@@ -1,1 +1,1 @@
-자막 번을 subtitles 필터 대신 drawtext 필터 체인으로 변경 (libass 의존성 제거)
+어셈블 영상 Vercel Blob 업로드 후 서버 FFmpeg로 자막 번 (ai-subtitles 방식)

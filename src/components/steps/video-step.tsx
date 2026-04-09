@@ -343,7 +343,25 @@ export function VideoStep() {
       await ffmpeg.writeFile("list.txt", clipUrls.map((_, i) => `file 'clip${i}.mp4'`).join("\n"));
       await ffmpeg.exec(["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "output.mp4"]);
       const data = await ffmpeg.readFile("output.mp4");
-      setAssembledUrl(URL.createObjectURL(new Blob([new Uint8Array(data as Uint8Array)], { type: "video/mp4" })));
+      const mp4Blob = new Blob([new Uint8Array(data as Uint8Array)], { type: "video/mp4" });
+
+      // Upload to Vercel Blob so server-side FFmpeg can fetch it for subtitle burning
+      try {
+        const form = new FormData();
+        form.append("file", new File([mp4Blob], "assembled.mp4", { type: "video/mp4" }));
+        form.append("folder", "assembled");
+        form.append("projectId", useProjectStore.getState().id);
+        const uploadRes = await fetch("/api/assets/upload", { method: "POST", body: form });
+        if (uploadRes.ok) {
+          const { url } = await uploadRes.json();
+          setAssembledUrl(url);
+        } else {
+          setAssembledUrl(URL.createObjectURL(mp4Blob));
+        }
+      } catch {
+        // Fallback to blob URL (BURN SUBTITLES won't work but video plays fine)
+        setAssembledUrl(URL.createObjectURL(mp4Blob));
+      }
     } catch (e) {
       setAssembleError(e instanceof Error ? e.message : t.video.assemblyFail);
     } finally {
@@ -376,60 +394,21 @@ export function VideoStep() {
     setSubtitleError(null);
     setSubtitledUrl(null);
     try {
-      // Parse SRT → FFmpeg drawtext filter chain (no libass needed)
-      const srtToDrawtext = (srtText: string): string => {
-        const parseSrtTime = (ts: string): number => {
-          const [hms, ms] = ts.trim().split(",");
-          const [h, m, s] = hms.split(":").map(Number);
-          return h * 3600 + m * 60 + s + Number(ms) / 1000;
-        };
-
-        const escapeDrawtext = (text: string): string =>
-          text
-            .replace(/\\/g, "\\\\")
-            .replace(/'/g, "\u2019")  // replace apostrophe with typographic quote to avoid filter breakage
-            .replace(/:/g, "\\:")
-            .replace(/\[/g, "\\[")
-            .replace(/\]/g, "\\]");
-
-        const blocks = srtText.trim().split(/\n\s*\n/);
-        return blocks
-          .map((block) => {
-            const lines = block.trim().split("\n");
-            if (lines.length < 3) return null;
-            const times = lines[1].split(" --> ");
-            if (times.length < 2) return null;
-            const start = parseSrtTime(times[0]);
-            const end = parseSrtTime(times[1]);
-            const text = escapeDrawtext(lines.slice(2).join(" "));
-            return (
-              `drawtext=text='${text}'` +
-              `:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'` +
-              `:fontsize=24:fontcolor=white:borderw=2:bordercolor=black` +
-              `:x=(w-tw)/2:y=h-th-40`
-            );
-          })
-          .filter(Boolean)
-          .join(",");
-      };
-
-      const vf = srtToDrawtext(srt);
-      if (!vf) throw new Error("No subtitle entries to burn");
-
-      const { FFmpeg } = await import("@ffmpeg/ffmpeg");
-      const { fetchFile, toBlobURL } = await import("@ffmpeg/util");
-      const ffmpeg = new FFmpeg();
-      const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
-      await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+      if (!videoUrl.startsWith("http")) {
+        throw new Error("Assembled video must be uploaded first. Wait for upload to complete after assembling.");
+      }
+      const res = await fetch("/api/video/compose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoUrl,
+          srtContent: srt,
+          projectId: useProjectStore.getState().id,
+        }),
       });
-
-      await ffmpeg.writeFile("input.mp4", await fetchFile(videoUrl));
-      await ffmpeg.exec(["-i", "input.mp4", "-vf", vf, "-c:a", "copy", "output.mp4"]);
-
-      const data = await ffmpeg.readFile("output.mp4");
-      setSubtitledUrl(URL.createObjectURL(new Blob([new Uint8Array(data as Uint8Array)], { type: "video/mp4" })));
+      if (!res.ok) throw new Error(await res.text());
+      const { url } = await res.json();
+      setSubtitledUrl(url);
     } catch (e) {
       setSubtitleError(e instanceof Error ? e.message : "Subtitle burn failed");
     } finally {
