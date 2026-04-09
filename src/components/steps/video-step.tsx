@@ -426,7 +426,7 @@ export function VideoStep() {
             const start = parseSrtTime(times[0]).toFixed(3);
             const end = parseSrtTime(times[1]).toFixed(3);
             const text = esc(lines.slice(2).join(" "));
-            return `drawtext=text='${text}':enable='between(t,${start},${end})':fontsize=24:fontcolor=white:borderw=2:bordercolor=black:x=(w-tw)/2:y=h-th-40`;
+            return `drawtext=text='${text}':enable='between(t,${start},${end})':fontsize=14:fontcolor=white:borderw=2:bordercolor=black:x=(w-tw)/2:y=h-th-40`;
           }).filter(Boolean).join(",");
         };
 

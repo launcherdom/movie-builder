@@ -1,1 +1,1 @@
-스토리 생성 overloaded_error 재시도: 최대 4회 exponential backoff, 평가 실패 시 비중단
+자막 폰트 크기 24 → 14로 축소 (서버 burn.ts + 클라이언트 drawtext)

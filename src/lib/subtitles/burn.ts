@@ -23,7 +23,7 @@ export async function burnSubtitles(
   opts: BurnOptions = {}
 ): Promise<string> {
   const {
-    fontSize = 24,
+    fontSize = 14,
     primaryColor = "&H00FFFFFF",
     outlineColor = "&H00000000",
     outline = 2,
