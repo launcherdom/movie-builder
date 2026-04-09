@@ -376,7 +376,46 @@ export function VideoStep() {
     setSubtitleError(null);
     setSubtitledUrl(null);
     try {
-      // Run entirely in browser — blob: URLs are only accessible client-side
+      // Parse SRT → FFmpeg drawtext filter chain (no libass needed)
+      const srtToDrawtext = (srtText: string): string => {
+        const parseSrtTime = (ts: string): number => {
+          const [hms, ms] = ts.trim().split(",");
+          const [h, m, s] = hms.split(":").map(Number);
+          return h * 3600 + m * 60 + s + Number(ms) / 1000;
+        };
+
+        const escapeDrawtext = (text: string): string =>
+          text
+            .replace(/\\/g, "\\\\")
+            .replace(/'/g, "\u2019")  // replace apostrophe with typographic quote to avoid filter breakage
+            .replace(/:/g, "\\:")
+            .replace(/\[/g, "\\[")
+            .replace(/\]/g, "\\]");
+
+        const blocks = srtText.trim().split(/\n\s*\n/);
+        return blocks
+          .map((block) => {
+            const lines = block.trim().split("\n");
+            if (lines.length < 3) return null;
+            const times = lines[1].split(" --> ");
+            if (times.length < 2) return null;
+            const start = parseSrtTime(times[0]);
+            const end = parseSrtTime(times[1]);
+            const text = escapeDrawtext(lines.slice(2).join(" "));
+            return (
+              `drawtext=text='${text}'` +
+              `:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'` +
+              `:fontsize=24:fontcolor=white:borderw=2:bordercolor=black` +
+              `:x=(w-tw)/2:y=h-th-40`
+            );
+          })
+          .filter(Boolean)
+          .join(",");
+      };
+
+      const vf = srtToDrawtext(srt);
+      if (!vf) throw new Error("No subtitle entries to burn");
+
       const { FFmpeg } = await import("@ffmpeg/ffmpeg");
       const { fetchFile, toBlobURL } = await import("@ffmpeg/util");
       const ffmpeg = new FFmpeg();
@@ -387,14 +426,7 @@ export function VideoStep() {
       });
 
       await ffmpeg.writeFile("input.mp4", await fetchFile(videoUrl));
-      await ffmpeg.writeFile("subtitles.srt", new TextEncoder().encode(srt));
-
-      await ffmpeg.exec([
-        "-i", "input.mp4",
-        "-vf", "subtitles=subtitles.srt:force_style='FontSize=24,PrimaryColour=&H00FFFFFF,Outline=2,Bold=1,Alignment=2,MarginV=30'",
-        "-c:a", "copy",
-        "output.mp4",
-      ]);
+      await ffmpeg.exec(["-i", "input.mp4", "-vf", vf, "-c:a", "copy", "output.mp4"]);
 
       const data = await ffmpeg.readFile("output.mp4");
       setSubtitledUrl(URL.createObjectURL(new Blob([new Uint8Array(data as Uint8Array)], { type: "video/mp4" })));
