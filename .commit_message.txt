@@ -1,1 +1,1 @@
-자막 burn apad로 AAC 1 frames left 에러 수정
+어셈블 영상 업로드 413 에러 수정: Vercel Blob 클라이언트 직접 업로드로 전환

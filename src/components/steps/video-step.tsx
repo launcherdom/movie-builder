@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { upload } from "@vercel/blob/client";
 import { useProjectStore } from "@/stores/project-store";
 import { useLangStore } from "@/stores/lang-store";
 import { VideoPromptEditor } from "@/components/video/video-prompt-editor";
@@ -351,19 +352,15 @@ export function VideoStep() {
       const data = await ffmpeg.readFile("output.mp4");
       const mp4Blob = new Blob([new Uint8Array(data as Uint8Array)], { type: "video/mp4" });
 
-      // Upload to Vercel Blob so server-side FFmpeg can fetch it for subtitle burning
+      // Upload directly to Vercel Blob (client-side, no 4MB API limit)
       try {
-        const form = new FormData();
-        form.append("file", new File([mp4Blob], "assembled.mp4", { type: "video/mp4" }));
-        form.append("folder", "assembled");
-        form.append("projectId", useProjectStore.getState().id);
-        const uploadRes = await fetch("/api/assets/upload", { method: "POST", body: form });
-        if (uploadRes.ok) {
-          const { url } = await uploadRes.json();
-          setAssembledUrl(url);
-        } else {
-          setAssembledUrl(URL.createObjectURL(mp4Blob));
-        }
+        const projectId = useProjectStore.getState().id;
+        const blob = await upload(`assembled/${projectId}/output.mp4`, mp4Blob, {
+          access: "public",
+          handleUploadUrl: "/api/assets/upload",
+          contentType: "video/mp4",
+        });
+        setAssembledUrl(blob.url);
       } catch {
         // Fallback to blob URL (BURN SUBTITLES won't work but video plays fine)
         setAssembledUrl(URL.createObjectURL(mp4Blob));
