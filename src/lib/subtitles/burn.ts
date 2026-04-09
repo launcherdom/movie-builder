@@ -75,7 +75,7 @@ export async function burnSubtitles(
     await fs.copyFile(fontSrc, path.join(tmpDir, "NanumGothic.ttf"));
 
     // Convert SRT → ASS with full style control (BorderStyle=3 = opaque box)
-    const assContent = srtToAss(srtContent, "NanumGothic", 9);
+    const assContent = srtToAss(srtContent, "NanumGothic", 52);
     await fs.writeFile(assPath, assContent, "utf8");
 
     // Escape path for FFmpeg filter syntax
