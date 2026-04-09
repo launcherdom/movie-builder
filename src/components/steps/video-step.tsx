@@ -399,6 +399,7 @@ export function VideoStep() {
     setSubtitledUrl(null);
     try {
       // Always use client-side WASM — server-side FFmpeg on Vercel Linux lacks required codecs
+      const FONT_FILE = "font.ttf";
       const srtToDrawtext = (srtText: string): string => {
         const parseSrtTime = (ts: string): number => {
           const [hms, ms] = ts.trim().split(",");
@@ -415,7 +416,7 @@ export function VideoStep() {
           const start = parseSrtTime(times[0]).toFixed(3);
           const end = parseSrtTime(times[1]).toFixed(3);
           const text = esc(lines.slice(2).join(" "));
-          return `drawtext=text='${text}':enable='between(t,${start},${end})':fontsize=12:fontcolor=white:box=1:boxcolor=0x00000099:boxborderw=8:x=(w-tw)/2:y=h-th-50`;
+          return `drawtext=fontfile=${FONT_FILE}:text='${text}':enable='between(t,${start},${end})':fontsize=12:fontcolor=white:box=1:boxcolor=0x00000099:boxborderw=8:x=(w-tw)/2:y=h-th-50`;
         }).filter(Boolean).join(",");
       };
 
@@ -432,9 +433,15 @@ export function VideoStep() {
       });
       const logs: string[] = [];
       ffmpeg.on("log", ({ message }) => logs.push(message));
+
+      // Load a font into WASM FS — drawtext requires an explicit fontfile in the WASM sandbox
+      await ffmpeg.writeFile(FONT_FILE, await fetchFile(
+        "https://cdn.jsdelivr.net/npm/roboto-fontface@0.10.0/fonts/roboto/Roboto-Regular.ttf"
+      ));
+
       await ffmpeg.writeFile("input.mp4", await fetchFile(videoUrl));
 
-      // Step 1: normalize to baseline H.264/yuv420p to handle any codec/format quirks from fal.ai
+      // Step 1: normalize to baseline H.264/yuv420p
       const step1 = await ffmpeg.exec([
         "-i", "input.mp4",
         "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
@@ -443,7 +450,7 @@ export function VideoStep() {
       ]);
       if (step1 !== 0) throw new Error(`FFmpeg WASM error (normalize): ${logs.slice(-3).join(" | ")}`);
 
-      // Step 2: apply drawtext subtitle filter to the normalized video
+      // Step 2: apply drawtext subtitle filter
       const code = await ffmpeg.exec([
         "-i", "normalized.mp4",
         "-vf", vf,
