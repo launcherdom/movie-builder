@@ -1,1 +1,1 @@
-feat: Seedance duration을 auto로 변경하여 모델이 최적 길이 자동 결정
+feat: 보드 단계를 씬당 만화 1장(전체 컷 포함) 생성으로 전환

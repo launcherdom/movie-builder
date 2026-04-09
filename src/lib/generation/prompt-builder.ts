@@ -38,6 +38,35 @@ export function buildStoryboardPrompt(
 }
 
 /**
+ * Build a single manga page prompt covering all shots in a scene.
+ * Generates one image with multiple panel layout representing every cut.
+ */
+export function buildSceneMangaPrompt(
+  scene: Scene | { description: string; shots: Shot[] },
+  characters: Character[],
+): ImagePromptJson {
+  const shots = "shots" in scene ? scene.shots : [];
+  const panelDescriptions = shots
+    .map((sh, i) => {
+      const label = `Panel ${i + 1} [${sh.shotType} shot]`;
+      const action = sh.description;
+      return `${label}: ${action}`;
+    })
+    .join(". ");
+
+  const charDesc = characters.map((c) => c.description).join(". ");
+  const sceneDesc = "description" in scene ? scene.description : "";
+
+  return {
+    composition: `${STORYBOARD_PREFIX} Full manga page layout with ${shots.length} sequential panels arranged naturally. ${panelDescriptions}.`,
+    subject: charDesc,
+    environment: sceneDesc,
+    cinematography: "High contrast ink shadows, dramatic black and white tones, manga-style shading, dynamic panel borders.",
+    negative: "color, text, speech bubbles, captions, watermark, blur, low quality, single panel",
+  };
+}
+
+/**
  * Build a structured image prompt for keyframe (photorealistic) generation.
  */
 export function buildKeyframePrompt(

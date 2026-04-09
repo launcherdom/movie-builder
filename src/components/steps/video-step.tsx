@@ -112,8 +112,8 @@ function SceneVideoCard({
   const status = scene.sceneVideoStatus ?? "idle";
   const isGenerating = status === "generating";
 
-  // Require at least one shot with a storyboard panel
-  const hasPanels = scene.shots.some((sh) => sh.storyboardPanel?.url?.startsWith("http"));
+  // Require the scene-level manga panel to be generated
+  const hasPanels = !!scene.scenePanel?.url?.startsWith("http");
   const totalDuration = Math.min(scene.shots.reduce((s, sh) => s + sh.duration, 0), 15);
 
   const handleGenerate = async () => {
@@ -130,20 +130,17 @@ function SceneVideoCard({
       let sceneChars = characters.filter((c) => scene.characterIds.includes(c.id));
       if (sceneChars.length === 0 && characters.length > 0) sceneChars = characters;
 
-      // Character sheets first, then up to 3 storyboard panels from this scene
+      // Character sheets + scene manga panel as reference images
       const charSheetUrls = sceneChars
         .map((c) => c.characterSheet?.url)
         .filter((u): u is string => !!u && u.startsWith("http"));
-      const panelUrls = scene.shots
-        .map((sh) => sh.storyboardPanel?.url)
-        .filter((u): u is string => !!u && u.startsWith("http"))
-        .slice(0, 3);
-      const referenceImageUrls = [...charSheetUrls, ...panelUrls].slice(0, 9);
+      const scenePanelUrl = scene.scenePanel?.url?.startsWith("http") ? scene.scenePanel.url : null;
+      const referenceImageUrls = [...charSheetUrls, ...(scenePanelUrl ? [scenePanelUrl] : [])].slice(0, 9);
 
       // Labels tell Seedance what each @Image represents — critical for identity anchoring
       const referenceLabels = [
         ...sceneChars.filter((c) => c.characterSheet?.url?.startsWith("http")).map((c) => `${c.name} character sheet`),
-        ...panelUrls.map((_, i) => `scene storyboard panel ${i + 1}`),
+        ...(scenePanelUrl ? ["scene manga storyboard"] : []),
       ].slice(0, 9);
 
       if (referenceImageUrls.length === 0) {
@@ -230,28 +227,19 @@ function SceneVideoCard({
         </div>
       </div>
 
-      {/* Storyboard strip + video */}
+      {/* Scene manga panel + video */}
       <div style={{ display: "flex", gap: 0 }}>
-        {/* Shot thumbnails */}
-        <div style={{ display: "flex", gap: 0, borderRight: "1px solid var(--border)", overflow: "hidden" }}>
-          {scene.shots.map((shot, shi) => (
-            <div key={shot.id} style={{ width: 80, flexShrink: 0, padding: 8, borderRight: shi < scene.shots.length - 1 ? "1px solid var(--border)" : "none" }}>
-              <p style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 8, color: "var(--text-disabled)", marginBottom: 4, letterSpacing: "0.08em" }}>
-                {shot.shotType} {shot.duration}S
-              </p>
-              {shot.storyboardPanel ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={shot.storyboardPanel.url}
-                  alt={`shot ${shi + 1}`}
-                  style={{ width: "100%", borderRadius: 3, opacity: 0.75 }}
-                />
-              ) : (
-                <div style={{ width: "100%", aspectRatio: "9/16", background: "var(--border)", borderRadius: 3 }} />
-              )}
-            </div>
-          ))}
-        </div>
+        {/* Scene manga panel thumbnail */}
+        {scene.scenePanel && (
+          <div style={{ width: 100, flexShrink: 0, padding: 8, borderRight: "1px solid var(--border)" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={scene.scenePanel.url}
+              alt="scene manga"
+              style={{ width: "100%", borderRadius: 3, opacity: 0.85 }}
+            />
+          </div>
+        )}
 
         {/* Scene video */}
         {scene.sceneVideoClip ? (
@@ -475,7 +463,7 @@ export function VideoStep() {
   const handleGenerateAll = async () => {
     const store = useProjectStore.getState();
     const toProcess = story.scenes.filter(
-      (sc) => sc.sceneVideoStatus !== "done" && sc.shots.some((sh) => sh.storyboardPanel?.url?.startsWith("http"))
+      (sc) => sc.sceneVideoStatus !== "done" && !!sc.scenePanel?.url?.startsWith("http")
     );
 
     setGenerating(true, { current: 0, total: toProcess.length });
@@ -495,15 +483,12 @@ export function VideoStep() {
         const charSheetUrls = sceneChars
           .map((c) => c.characterSheet?.url)
           .filter((u): u is string => !!u && u.startsWith("http"));
-        const panelUrls = freshScene.shots
-          .map((sh) => sh.storyboardPanel?.url)
-          .filter((u): u is string => !!u && u.startsWith("http"))
-          .slice(0, 3);
-        const referenceImageUrls = [...charSheetUrls, ...panelUrls].slice(0, 9);
+        const scenePanelUrl = freshScene.scenePanel?.url?.startsWith("http") ? freshScene.scenePanel.url : null;
+        const referenceImageUrls = [...charSheetUrls, ...(scenePanelUrl ? [scenePanelUrl] : [])].slice(0, 9);
 
         const referenceLabels = [
           ...sceneChars.filter((c) => c.characterSheet?.url?.startsWith("http")).map((c) => `${c.name} character sheet`),
-          ...panelUrls.map((_, i) => `scene storyboard panel ${i + 1}`),
+          ...(scenePanelUrl ? ["scene manga storyboard"] : []),
         ].slice(0, 9);
 
         if (referenceImageUrls.length === 0) return;

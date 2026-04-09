@@ -126,6 +126,8 @@ export interface Scene {
   characterIds: string[];
   shots: Shot[];
   transitionTo: TransitionType;
+  scenePanel?: GeneratedImage;        // single manga page for the whole scene
+  scenePanelStatus?: GenerationStatus;
   sceneVideoClip?: GeneratedVideo;
   sceneVideoStatus?: GenerationStatus;
 }

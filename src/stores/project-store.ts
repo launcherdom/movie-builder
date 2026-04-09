@@ -38,6 +38,8 @@ interface ProjectActions {
   setShotVideoStatus: (shotId: string, status: GenerationStatus) => void;
   setShotVideo: (shotId: string, video: GeneratedVideo) => void;
   setShotVideoPromptJson: (shotId: string, json: VideoPromptJson) => void;
+  setScenePanel: (sceneId: string, panel: GeneratedImage) => void;
+  setScenePanelStatus: (sceneId: string, status: GenerationStatus) => void;
   setSceneVideoStatus: (sceneId: string, status: GenerationStatus) => void;
   setSceneVideo: (sceneId: string, video: GeneratedVideo) => void;
   setStyleReference: (image: GeneratedImage, analysis: string) => void;
@@ -241,6 +243,32 @@ function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectSto
 
     setShotVideoPromptJson: (shotId, json) =>
       set((state) => updateShot(state, shotId, { videoPromptJson: json })),
+
+    setScenePanel: (sceneId, panel) =>
+      set((state) => {
+        if (!state.story) return {};
+        return {
+          story: {
+            ...state.story,
+            scenes: state.story.scenes.map((sc) =>
+              sc.id === sceneId ? { ...sc, scenePanel: panel, scenePanelStatus: "done" } : sc
+            ),
+          },
+        };
+      }),
+
+    setScenePanelStatus: (sceneId, status) =>
+      set((state) => {
+        if (!state.story) return {};
+        return {
+          story: {
+            ...state.story,
+            scenes: state.story.scenes.map((sc) =>
+              sc.id === sceneId ? { ...sc, scenePanelStatus: status } : sc
+            ),
+          },
+        };
+      }),
 
     setSceneVideoStatus: (sceneId, status) =>
       set((state) => {
