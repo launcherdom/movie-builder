@@ -268,9 +268,9 @@ export function StoryStep() {
               <QualityBar label="Dialogue" score={storyQuality.dialogue} />
               <QualityBar label="Visual Clarity" score={storyQuality.visualClarity} />
               <QualityBar label="Continuity" score={storyQuality.continuity} />
-              {storyQuality.suggestions.length > 0 && (
+              {(storyQuality.suggestions ?? []).length > 0 && (
                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
-                  {storyQuality.suggestions.map((s, i) => (
+                  {(storyQuality.suggestions ?? []).map((s, i) => (
                     <p key={i} style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, color: "var(--text-secondary)", marginBottom: 4, lineHeight: 1.5 }}>
                       {String(i + 1).padStart(2, "0")}. {s}
                     </p>

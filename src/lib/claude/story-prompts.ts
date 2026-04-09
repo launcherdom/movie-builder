@@ -215,7 +215,16 @@ export function parseEvaluationResponse(response: ClaudeResponse): import("@/typ
     (b) => b.type === "tool_use" && b.name === "evaluate_screenplay"
   );
   if (!toolBlock || !toolBlock.input) return null;
-  return toolBlock.input as import("@/types/movie").StoryQualityScores;
+  const raw = toolBlock.input as Record<string, unknown>;
+  return {
+    pacing: Number(raw.pacing ?? 7),
+    hooks: Number(raw.hooks ?? 7),
+    dialogue: Number(raw.dialogue ?? 7),
+    visualClarity: Number(raw.visualClarity ?? 7),
+    continuity: Number(raw.continuity ?? 7),
+    overallScore: Number(raw.overallScore ?? 7),
+    suggestions: Array.isArray(raw.suggestions) ? raw.suggestions as string[] : [],
+  };
 }
 
 export function buildStorySystemPrompt(
