@@ -1,22 +1,40 @@
 import type { Character } from "@/types/movie";
 
-export const CHARACTER_SHEET_PROMPT_TEMPLATE = `A high-definition, clean, minimalist character design board / character turnaround reference sheet, set against a pure white background. The overall presentation should resemble a professional game art character modeling sheet, fashion design reference page, character design sheet, or character turnaround board. The layout should be neat and well-organized, with clearly divided information sections, a realistic and premium visual quality, consistent lighting, and strict character consistency throughout.
+export const CHARACTER_SHEET_PROMPT_TEMPLATE = `A photorealistic actor/actress reference photography sheet for a live-action film production. This is a casting and costume department reference — every image must look like a real photograph of a real human being. No illustration, no 3D rendering, no CGI, no digital art. Pure photorealism.
 
-FACE PRIORITY: The character's facial features are the most important element. Every view must show the exact same face: identical eye shape, eye color, nose structure, lip shape, jawline, skin tone, and brow shape. The face must be instantly recognizable as the same individual from any angle. Facial consistency is non-negotiable across all views.
+Pure white seamless studio backdrop throughout. Professional studio lighting: soft, even, shadowless — like a high-end fashion editorial or Hollywood costume reference shoot.
 
-On the left side of the composition, show the character's full-body three-view turnaround, occupying the main visual area, including: 1. Front full-body standing pose 2. Left-side full-body standing pose 3. Back full-body standing pose  All three figures must be the exact same character, with identical facial features, hairstyle, clothing, body shape, and height proportions. The standing pose should feel natural, with both arms hanging naturally at the sides. This should be suitable as a character modeling reference. The camera angle should be eye level, with neutral studio lighting, no obstruction, no exaggerated perspective, and no complex background.
+FACE PRIORITY: This person's facial features must be identical across every image. Same eye shape, eye color, nose, lips, jawline, skin tone, brow shape, and hair. The face must be instantly recognizable as the same real human from every angle. Photographic consistency is non-negotiable.
 
-The right side of the composition should be divided into two sections:
+Left side — full-body editorial photography, three angles of the same outfit:
+1. Front view: standing naturally, arms relaxed at sides, full body head to toe
+2. Side view (left profile): same relaxed pose, full body
+3. Back view: full body, showing hair and outfit from behind
+All three photos must look like they were taken in the same studio session — same person, same clothes, same lighting.
 
-In the upper-right section, place six headshot / head-angle reference images of the same character, arranged neatly to show different head perspectives, including: - Front-facing portrait (LARGEST, centered) - Slight downward angle - Back of the head - Left-side facial profile - 3/4 profile portrait - Close-up of face only, filling the frame  Each head reference must show photorealistic, highly detailed facial features with sharp clarity. The eyes, nose, and mouth must be rendered with maximum precision — these serve as the canonical face reference for AI video generation.
+Upper-right — six face/headshot reference photos of the same person:
+- Large front-facing portrait (dominant image)
+- Slight downward angle
+- Back of head showing hairstyle
+- Left profile
+- 3/4 angle portrait
+- Extreme close-up of face filling the frame
+Every headshot must look like a real photograph — pores visible, natural skin texture, realistic eyes with catchlights.
 
-In the lower-right section, place six close-up detail images of the character, arranged into a clean grid, showing key design details, including: - Close-up of the upper garment fabric texture - Front close-up of the lower-body clothing - Close-up of the hip / tailoring detail - Close-up of the leg or skin texture detail - Close-up of the eyes or facial feature details - Full close-up of the shoes as a standalone item  All detail images must match the main character's outfit and appearance exactly. Materials should look realistic, and the details should be clean and precise, suitable as clothing and accessory modeling references.
+Lower-right — six clothing and detail close-up photographs:
+- Upper garment fabric and texture close-up
+- Lower body / pants / skirt close-up
+- Waist / belt / tailoring detail
+- Hands or arm detail
+- Eye and facial feature extreme close-up
+- Footwear full shot
+All detail shots must be photographic — real fabric texture, real material reflectance, no illustrated or painted look.
 
-Overall style requirements: Minimalist, professional, realistic, unified, clean, and premium, similar to a character design board, fashion design reference sheet, 3D character modeling reference page, or character turnaround presentation board. The character edges should be sharp, garment shapes should be clearly defined, hair strands should appear natural, skin should look refined, and material rendering should be accurate. The overall layout should have generous white space, as if it were made by a professional concept art team.
+Overall requirements: Every single image in this reference sheet must look like a REAL PHOTOGRAPH of a REAL HUMAN. Photorealistic skin with natural pores and texture. Real hair strands. Real fabric with accurate material properties. Shot on a high-end camera with professional studio lighting. This is not concept art, not illustration, not 3D render.
 
-Character setup: {CHARACTER_DESCRIPTION}
+Character: {CHARACTER_DESCRIPTION}
 
-Output requirements: Landscape composition, white background, full character visible, no cropping, no extra props, no explanatory text, no logo, no watermark, no UI interface elements, no like/save buttons, and no social-media-screenshot appearance.`;
+Output: Landscape composition, white background, full layout visible, no cropping, no text labels, no watermarks, no UI elements.`;
 
 export function buildCharacterSheetPrompt(character: Character): string {
   return CHARACTER_SHEET_PROMPT_TEMPLATE.replace(
