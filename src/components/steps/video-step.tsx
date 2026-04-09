@@ -126,21 +126,24 @@ function SceneVideoCard({
 
     try {
       const characters = story?.characters ?? [];
-      const sceneChars = characters.filter((c) => scene.characterIds.includes(c.id));
+      // Use scene-specific chars; fall back to all characters if characterIds don't match
+      let sceneChars = characters.filter((c) => scene.characterIds.includes(c.id));
+      if (sceneChars.length === 0 && characters.length > 0) sceneChars = characters;
 
-      // Character sheets as primary identity reference, then first storyboard panel
+      // Character sheets first, then up to 3 storyboard panels from this scene
       const charSheetUrls = sceneChars
         .map((c) => c.characterSheet?.url)
         .filter((u): u is string => !!u && u.startsWith("http"));
-      const firstPanelUrl = scene.shots
+      const panelUrls = scene.shots
         .map((sh) => sh.storyboardPanel?.url)
-        .find((u): u is string => !!u && u.startsWith("http"));
-      const referenceImageUrls = [...charSheetUrls, ...(firstPanelUrl ? [firstPanelUrl] : [])].slice(0, 9);
+        .filter((u): u is string => !!u && u.startsWith("http"))
+        .slice(0, 3);
+      const referenceImageUrls = [...charSheetUrls, ...panelUrls].slice(0, 9);
 
       // Labels tell Seedance what each @Image represents — critical for identity anchoring
       const referenceLabels = [
         ...sceneChars.filter((c) => c.characterSheet?.url?.startsWith("http")).map((c) => `${c.name} character sheet`),
-        ...(firstPanelUrl ? ["scene storyboard panel"] : []),
+        ...panelUrls.map((_, i) => `scene storyboard panel ${i + 1}`),
       ].slice(0, 9);
 
       if (referenceImageUrls.length === 0) {
