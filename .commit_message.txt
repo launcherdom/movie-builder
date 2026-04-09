@@ -1,1 +1,1 @@
-자막 번 로컬/프로덕션 분기: blob URL이면 WASM drawtext, HTTP URL이면 서버 FFmpeg
+스토리 생성 overloaded_error 재시도: 최대 4회 exponential backoff, 평가 실패 시 비중단

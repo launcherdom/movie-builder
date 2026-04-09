@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic, { APIError } from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import {
   SCREENPLAY_TOOL,
@@ -11,6 +11,55 @@ import {
 import type { Genre, Tone, AspectRatio, VisualStyle } from "@/types/movie";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+const PHASES = [
+  { threshold: 0.1, message: "Building characters..." },
+  { threshold: 0.3, message: "Writing scenes..." },
+  { threshold: 0.6, message: "Composing shots..." },
+  { threshold: 0.9, message: "Finalizing screenplay..." },
+];
+
+async function streamScreenplay(
+  params: Anthropic.MessageStreamParams,
+  onProgress: (msg: string) => void,
+  maxAttempts = 4
+): Promise<{ finalMessage: Anthropic.Message; inputTokens: number; outputTokens: number }> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const msgStream = client.messages.stream(params);
+
+      let inputTokens = 0;
+      let outputTokens = 0;
+      let phaseIdx = 0;
+
+      msgStream.on("message", (msg) => {
+        inputTokens = msg.usage.input_tokens;
+        outputTokens = msg.usage.output_tokens;
+      });
+
+      msgStream.on("text", (_, snapshot) => {
+        const progress = snapshot.length / 8000;
+        while (phaseIdx < PHASES.length && progress >= PHASES[phaseIdx].threshold) {
+          onProgress(PHASES[phaseIdx].message);
+          phaseIdx++;
+        }
+      });
+
+      const finalMessage = await msgStream.finalMessage();
+      return { finalMessage, inputTokens, outputTokens };
+    } catch (err) {
+      const isOverloaded = err instanceof APIError && (err as APIError).status === 529;
+      if (isOverloaded && attempt < maxAttempts) {
+        const delaySec = Math.min(2 * 2 ** (attempt - 1), 16);
+        onProgress(`API busy, retrying in ${delaySec}s... (${attempt}/${maxAttempts - 1})`);
+        await new Promise((r) => setTimeout(r, delaySec * 1000));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("unreachable");
+}
 
 export async function POST(request: NextRequest) {
   const { concept, genre, tone, targetDuration, aspectRatio, visualStyle } =
@@ -37,42 +86,17 @@ export async function POST(request: NextRequest) {
       try {
         controller.enqueue(send({ status: "thinking", message: "Analyzing concept..." }));
 
-        // Use streaming to get live progress
-        const msgStream = client.messages.stream({
-          model: "claude-sonnet-4-6",
-          max_tokens: 8192,
-          system: systemPrompt,
-          tools: [SCREENPLAY_TOOL],
-          tool_choice: { type: "tool", name: "create_screenplay" },
-          messages: [{ role: "user", content: `Write a short film screenplay based on this concept: "${concept}"` }],
-        });
-
-        let inputTokens = 0;
-        let outputTokens = 0;
-
-        msgStream.on("message", (msg) => {
-          inputTokens = msg.usage.input_tokens;
-          outputTokens = msg.usage.output_tokens;
-        });
-
-        // Emit progress events at milestones
-        const phases = [
-          { threshold: 0.1, message: "Building characters..." },
-          { threshold: 0.3, message: "Writing scenes..." },
-          { threshold: 0.6, message: "Composing shots..." },
-          { threshold: 0.9, message: "Finalizing screenplay..." },
-        ];
-        let phaseIdx = 0;
-
-        msgStream.on("text", (_, snapshot) => {
-          const progress = snapshot.length / 8000; // rough estimate
-          while (phaseIdx < phases.length && progress >= phases[phaseIdx].threshold) {
-            controller.enqueue(send({ status: "thinking", message: phases[phaseIdx].message }));
-            phaseIdx++;
-          }
-        });
-
-        const finalMessage = await msgStream.finalMessage();
+        const { finalMessage, inputTokens, outputTokens } = await streamScreenplay(
+          {
+            model: "claude-sonnet-4-6",
+            max_tokens: 8192,
+            system: systemPrompt,
+            tools: [SCREENPLAY_TOOL],
+            tool_choice: { type: "tool", name: "create_screenplay" },
+            messages: [{ role: "user", content: `Write a short film screenplay based on this concept: "${concept}"` }],
+          },
+          (msg) => controller.enqueue(send({ status: "thinking", message: msg }))
+        );
 
         controller.enqueue(send({
           status: "thinking",
@@ -81,20 +105,27 @@ export async function POST(request: NextRequest) {
 
         const story = parseStoryResponse(finalMessage as Parameters<typeof parseStoryResponse>[0]);
 
-        // Phase C: Evaluate screenplay quality
+        // Evaluate screenplay quality
         controller.enqueue(send({ status: "evaluating", message: "Evaluating screenplay quality..." }));
 
         let evaluatedStory = story;
         let attempt = 0;
         while (attempt < 2) {
           const evalPrompt = buildEvaluationPrompt(evaluatedStory, genre);
-          const evalResponse = await client.messages.create({
-            model: "claude-sonnet-4-6",
-            max_tokens: 1024,
-            tools: [EVALUATE_SCREENPLAY_TOOL],
-            tool_choice: { type: "tool", name: "evaluate_screenplay" },
-            messages: [{ role: "user", content: evalPrompt }],
-          });
+          let evalResponse: Anthropic.Message;
+          try {
+            evalResponse = await client.messages.create({
+              model: "claude-sonnet-4-6",
+              max_tokens: 1024,
+              tools: [EVALUATE_SCREENPLAY_TOOL],
+              tool_choice: { type: "tool", name: "evaluate_screenplay" },
+              messages: [{ role: "user", content: evalPrompt }],
+            });
+          } catch (evalErr) {
+            // Evaluation failure is non-critical — skip it
+            console.warn("Evaluation failed, skipping:", evalErr);
+            break;
+          }
 
           const scores = parseEvaluationResponse(evalResponse as Parameters<typeof parseEvaluationResponse>[0]);
 
@@ -105,21 +136,21 @@ export async function POST(request: NextRequest) {
           // Auto-regenerate once if quality below threshold (first attempt only)
           if (attempt === 0 && scores.overallScore < 7 && scores.suggestions.length > 0) {
             controller.enqueue(send({ status: "thinking", message: "Improving screenplay..." }));
-            // Fresh request with improvement hints baked into system prompt
             const improveSystem = systemPrompt +
               `\n\nImprove upon a previous draft. Key issues to fix:\n` +
               scores.suggestions.map((s, i) => `${i + 1}. ${s}`).join("\n");
 
-            const improvedStream = client.messages.stream({
-              model: "claude-sonnet-4-6",
-              max_tokens: 8192,
-              system: improveSystem,
-              tools: [SCREENPLAY_TOOL],
-              tool_choice: { type: "tool", name: "create_screenplay" },
-              messages: [{ role: "user", content: `Write an improved screenplay based on this concept: "${concept}"` }],
-            });
-
-            const improvedFinal = await improvedStream.finalMessage();
+            const { finalMessage: improvedFinal } = await streamScreenplay(
+              {
+                model: "claude-sonnet-4-6",
+                max_tokens: 8192,
+                system: improveSystem,
+                tools: [SCREENPLAY_TOOL],
+                tool_choice: { type: "tool", name: "create_screenplay" },
+                messages: [{ role: "user", content: `Write an improved screenplay based on this concept: "${concept}"` }],
+              },
+              (msg) => controller.enqueue(send({ status: "thinking", message: msg }))
+            );
             evaluatedStory = parseStoryResponse(improvedFinal as Parameters<typeof parseStoryResponse>[0]);
             attempt++;
             continue;
