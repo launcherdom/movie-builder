@@ -255,6 +255,11 @@ Character description rules (critical for visual consistency across shots):
 - Example: "Young woman, mid-20s, long black hair in a bun, wearing a red silk qipao with gold trim, sharp cheekbones."
 - These anchors must be identical every time the character appears.
 
+Scene characterIds rules (CRITICAL):
+- characterIds must list ONLY the characters who physically appear in that scene.
+- Do NOT include characters who are merely mentioned or off-screen.
+- If a scene has no named characters, set characterIds to an empty array [].
+
 Dialogue rules:
 - Include dialogue for speaking shots with speakerId matching the character's id.
 - Keep lines short (under 10 words) — they will be used for lip-sync guidance.`;
