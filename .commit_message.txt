@@ -1,1 +1,1 @@
-자막 burn 오디오 스트림 optional 매핑으로 AAC 버퍼 에러 수정
+자막 burn apad로 AAC 1 frames left 에러 수정

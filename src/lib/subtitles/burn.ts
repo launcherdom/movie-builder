@@ -67,9 +67,10 @@ export async function burnSubtitles(
         .videoFilters(`subtitles='${escapedSrt}':force_style='${forceStyle}'`)
         .outputOptions([
           "-map", "0:v:0",
-          "-map", "0:a:0?",    // optional: skip if no audio track
+          "-map", "0:a:0?",
           "-c:a", "aac",
           "-b:a", "128k",
+          "-af", "apad=pad_dur=0.1",  // flush AAC encoder buffer (fixes "1 frames left" error)
           "-shortest",
         ])
         .output(outputPath)
