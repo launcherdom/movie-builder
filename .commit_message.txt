@@ -1,1 +1,1 @@
-자막 burn: 서버 FFmpeg 크래시로 인해 클라이언트 WASM으로 전환 후 Vercel Blob에 업로드
+콘티 생성: nano-banana-2/edit i2i 순차 생성으로 전환하여 씬 내·씬 간 일관성 강화
