@@ -437,7 +437,7 @@ export function VideoStep() {
         "-i", "input.mp4",
         "-vf", vf,
         "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
-        "-c:a", "aac", "-shortest",
+        "-c:a", "copy",
         "output.mp4",
       ]);
       if (code !== 0) throw new Error(`FFmpeg WASM error: ${logs.slice(-3).join(" | ")}`);
