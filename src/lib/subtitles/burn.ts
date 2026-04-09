@@ -41,7 +41,8 @@ export async function burnSubtitles(
     const escapedFontsDir = tmpDir.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'");
 
     // YouTube-style: clean white text, semi-transparent dark background box, bottom center
-    const forceStyle = "FontName=NanumGothic,FontSize=11,Bold=0,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,Outline=0,Shadow=0,BackColour=&HCC000000,BorderStyle=3,Alignment=2,MarginV=50";
+    // ASS alpha: 00=opaque, FF=transparent — &H60000000 = ~62% opaque black
+    const forceStyle = "FontName=NanumGothic,FontSize=9,Bold=0,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,Outline=0,Shadow=0,BackColour=&H60000000,BorderStyle=3,Alignment=2,MarginV=50";
     const vf = `subtitles='${escapedSrt}':fontsdir='${escapedFontsDir}':force_style='${forceStyle}'`;
 
     await new Promise<void>((resolve, reject) => {
