@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
       prompt = serializeSceneVideoPrompt(body.shots, body.scene ?? { location: "", timeOfDay: "day" });
       id = body.sceneId;
       console.log("[video/generate] SCENE mode prompt:", prompt);
+      console.log("[video/generate] reference images:", validRefs);
     } else if (body.shotId && body.videoPromptJson && body.duration) {
       // Shot mode (legacy individual shot)
       duration = body.duration;
