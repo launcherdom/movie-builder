@@ -1,1 +1,1 @@
-Phase D: SRT 자막 생성 + fluent-ffmpeg 서버 번 + 자막 포함 영상 다운로드 UI
+fix: 스토리 개선 요청에서 tool_use 포함 assistant 메시지로 API 오류 수정

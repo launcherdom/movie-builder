@@ -105,22 +105,18 @@ export async function POST(request: NextRequest) {
           // Auto-regenerate once if quality below threshold (first attempt only)
           if (attempt === 0 && scores.overallScore < 7 && scores.suggestions.length > 0) {
             controller.enqueue(send({ status: "thinking", message: "Improving screenplay..." }));
-            const improveMessages = [
-              { role: "user" as const, content: `Write a short film screenplay based on this concept: "${concept}"` },
-              { role: "assistant" as const, content: finalMessage.content },
-              {
-                role: "user" as const,
-                content: `The screenplay scored ${scores.overallScore}/10. Please improve it based on these suggestions:\n${scores.suggestions.map((s, i) => `${i + 1}. ${s}`).join("\n")}`,
-              },
-            ];
+            // Fresh request with improvement hints baked into system prompt
+            const improveSystem = systemPrompt +
+              `\n\nImprove upon a previous draft. Key issues to fix:\n` +
+              scores.suggestions.map((s, i) => `${i + 1}. ${s}`).join("\n");
 
             const improvedStream = client.messages.stream({
               model: "claude-sonnet-4-6",
               max_tokens: 8192,
-              system: systemPrompt,
+              system: improveSystem,
               tools: [SCREENPLAY_TOOL],
               tool_choice: { type: "tool", name: "create_screenplay" },
-              messages: improveMessages,
+              messages: [{ role: "user", content: `Write an improved screenplay based on this concept: "${concept}"` }],
             });
 
             const improvedFinal = await improvedStream.finalMessage();
