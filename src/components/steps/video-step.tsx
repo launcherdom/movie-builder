@@ -128,21 +128,17 @@ function SceneVideoCard({
       const characters = story?.characters ?? [];
       const sceneChars = characters.filter((c) => scene.characterIds.includes(c.id));
 
-      // Face images first (strongest face identity), then character sheets, then first panel
-      const faceImageUrls = sceneChars
-        .map((c) => c.faceImage?.url)
-        .filter((u): u is string => !!u && u.startsWith("http"));
+      // Character sheets as primary identity reference, then first storyboard panel
       const charSheetUrls = sceneChars
         .map((c) => c.characterSheet?.url)
         .filter((u): u is string => !!u && u.startsWith("http"));
       const firstPanelUrl = scene.shots
         .map((sh) => sh.storyboardPanel?.url)
         .find((u): u is string => !!u && u.startsWith("http"));
-      const referenceImageUrls = [...faceImageUrls, ...charSheetUrls, ...(firstPanelUrl ? [firstPanelUrl] : [])].slice(0, 9);
+      const referenceImageUrls = [...charSheetUrls, ...(firstPanelUrl ? [firstPanelUrl] : [])].slice(0, 9);
 
       // Labels tell Seedance what each @Image represents — critical for identity anchoring
       const referenceLabels = [
-        ...sceneChars.filter((c) => c.faceImage?.url?.startsWith("http")).map((c) => `${c.name} face close-up`),
         ...sceneChars.filter((c) => c.characterSheet?.url?.startsWith("http")).map((c) => `${c.name} character sheet`),
         ...(firstPanelUrl ? ["scene storyboard panel"] : []),
       ].slice(0, 9);

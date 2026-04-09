@@ -6,7 +6,7 @@ import { CharacterCard } from "@/components/characters/character-card";
 import type { Character } from "@/types/movie";
 
 export function CharactersStep() {
-  const { story, setCurrentStep } = useProjectStore();
+  const { story, setCurrentStep, visualStyle } = useProjectStore();
   const { t } = useLangStore();
   const [generatingAll, setGeneratingAll] = useState(false);
 
@@ -28,15 +28,11 @@ export function CharactersStep() {
         const res = await fetch("/api/characters/sheet", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ character: char }),
+          body: JSON.stringify({ character: char, visualStyle }),
         });
         if (res.ok) {
-          const { characterSheet, faceImage } = await res.json();
-          const store = useProjectStore.getState();
-          store.updateCharacterSheet(char.id, characterSheet);
-          if (faceImage) {
-            store.setCharacterFaceImage(char.id, faceImage);
-          }
+          const { characterSheet } = await res.json();
+          useProjectStore.getState().updateCharacterSheet(char.id, characterSheet);
         }
       } catch {
         // continue with other characters

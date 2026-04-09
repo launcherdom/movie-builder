@@ -24,7 +24,7 @@ describe("buildCharacterSheetPrompt", () => {
   };
 
   it("inserts character description into template", () => {
-    const prompt = buildCharacterSheetPrompt(char);
+    const prompt = buildCharacterSheetPrompt(char, "cinematic");
     expect(prompt).toContain("28yo Korean woman, black bob, red leather jacket");
     expect(prompt).not.toContain("{CHARACTER_DESCRIPTION}");
   });
