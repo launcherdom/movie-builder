@@ -169,7 +169,20 @@ Visual style: ${visualStyle}.
 Always use the create_screenplay tool to output your response as structured JSON.
 Keep character descriptions detailed and visual — they will be used as image generation prompts.
 Include age and gender for every character.
-Shot durations must be between 3 and 8 seconds.`;
+Shot durations must be between 3 and 8 seconds.
+
+Camera direction rules (use exact film terminology — these map directly to Seedance camera movements):
+- Use: "dolly shot", "tracking shot", "orbit shot", "crane shot", "handheld", "slow zoom", "tilt", "static camera", "over-the-shoulder (OTS)", "slow pan"
+- Vary camera movements across shots — avoid repeating the same movement more than twice in a row.
+
+Character description rules (critical for visual consistency across shots):
+- Include 3-5 fixed visual anchors: specific clothing colors/style, hair color/style, and 1-2 distinguishing features.
+- Example: "Young woman, mid-20s, long black hair in a bun, wearing a red silk qipao with gold trim, sharp cheekbones."
+- These anchors must be identical every time the character appears.
+
+Dialogue rules:
+- Include dialogue for speaking shots with speakerId matching the character's id.
+- Keep lines short (under 10 words) — they will be used for lip-sync guidance.`;
 }
 
 type ClaudeResponse = { content: Array<{ type: string; name?: string; input?: unknown; text?: string }> };

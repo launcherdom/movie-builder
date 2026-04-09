@@ -24,6 +24,7 @@ function toCinematicMovement(raw?: string): string {
 
 function buildDefaultVideoPromptJson(shot: Shot): VideoPromptJson {
   return {
+    dialogue: shot.dialogue,
     shot: {
       composition: shot.shotType + " shot",
       lens: "standard cinematic lens",
@@ -341,7 +342,13 @@ export function VideoStep() {
     setGenerating(true, { current: 0, total: toProcess.length });
 
     // Generate all videos (max 1 concurrent via queue), using keyframe > storyboard panel as source
-    for (const { shot } of toProcess) {
+    for (let i = 0; i < toProcess.length; i++) {
+      const { shot } = toProcess[i];
+      // Look ahead in full ordered sequence for end_image_url (Seedance smooth transition)
+      const shotIndexInAll = allPairs.findIndex((p) => p.shot.id === shot.id);
+      const nextShotInAll = shotIndexInAll >= 0 ? allPairs[shotIndexInAll + 1]?.shot : undefined;
+      const endImageUrl = nextShotInAll?.keyframeImage?.url ?? nextShotInAll?.storyboardPanel?.url;
+
       await generationQueue.enqueueVideo(async () => {
         const freshShot = useProjectStore.getState().story?.scenes
           .flatMap((sc) => sc.shots).find((sh) => sh.id === shot.id);
@@ -361,6 +368,7 @@ export function VideoStep() {
               qualityTier,
               aspectRatio,
               projectId: useProjectStore.getState().id,
+              endImageUrl,
             }),
           });
           if (!res.ok) { store.setShotVideoStatus(shot.id, "error"); return; }

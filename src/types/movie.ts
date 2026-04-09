@@ -37,6 +37,7 @@ export interface ImagePromptJson {
 
 // ─── Video Prompt JSON ───────────────────────────────────
 export interface VideoPromptJson {
+  dialogue?: string;   // spoken line for this shot (used for lip-sync guidance)
   shot: {
     composition: string;
     lens: string;

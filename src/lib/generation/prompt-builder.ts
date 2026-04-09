@@ -86,16 +86,33 @@ export function serializeImagePrompt(prompt: ImagePromptJson): string {
 /**
  * Serialize a VideoPromptJson to natural language for Seedance 2.0.
  *
- * Seedance recommended structure: Subject + Action + Camera + Style + Audio
- * The start frame already defines the visual scene, so the prompt should
- * focus on MOTION, CAMERA WORK, and SOUND — not repeat the image content.
+ * Follows awesome-seedance validated structure:
+ *   Style → [00-Ns] timestamped shot block → Subject+Action → Dialogue lip-sync → Audio → Technical
  *
- * Reference: fal.ai Seedance 2.0 prompt guide
+ * The start frame already defines the visual scene, so focus on MOTION, CAMERA, and SOUND.
  */
-export function serializeVideoPrompt(p: VideoPromptJson): string {
+export function serializeVideoPrompt(p: VideoPromptJson, duration?: number): string {
   const parts: string[] = [];
 
-  // Subject & action
+  // 1. Style declaration (Seedance reads this first)
+  const styleTokens = [
+    p.cinematography.tone && p.cinematography.tone !== "dramatic" ? p.cinematography.tone : "cinematic",
+    p.cinematography.lighting,
+  ].filter(Boolean);
+  parts.push(`Style: ${styleTokens.join(", ")}.`);
+
+  // 2. Timestamped shot block — Seedance optimized format
+  const dur = duration ?? 5;
+  const cameraTokens = [
+    p.shot.composition,
+    p.shot.camera_movement && p.shot.camera_movement !== "static camera"
+      ? p.shot.camera_movement
+      : null,
+    p.shot.lens && p.shot.lens !== "standard cinematic lens" ? p.shot.lens : null,
+  ].filter(Boolean);
+  parts.push(`[00-${dur}s] ${cameraTokens.join(", ")}.`);
+
+  // 3. Subject & action
   if (p.subject.description) parts.push(p.subject.description + ".");
   if (p.visual_details.action && p.visual_details.action !== p.subject.description) {
     parts.push(p.visual_details.action + ".");
@@ -104,44 +121,40 @@ export function serializeVideoPrompt(p: VideoPromptJson): string {
     parts.push(`Wearing ${p.subject.wardrobe}.`);
   }
 
-  // Camera work (Seedance recognizes cinematic vocabulary)
-  const cameraTokens = [
-    p.shot.composition,
-    p.shot.camera_movement && p.shot.camera_movement !== "static"
-      ? p.shot.camera_movement
-      : null,
-    p.shot.lens && p.shot.lens !== "standard cinematic lens" ? p.shot.lens : null,
-  ].filter(Boolean);
-  if (cameraTokens.length) parts.push(cameraTokens.join(", ") + ".");
-
-  // Scene & environment (brief — image already shows the scene)
-  if (p.scene.location && p.scene.location !== "as described in scene") {
-    parts.push(`${p.scene.location}, ${p.scene.time_of_day}.`);
+  // 4. Dialogue lip-sync guidance (awesome-seedance: critical for mouth movement accuracy)
+  if (p.dialogue && p.dialogue.trim()) {
+    parts.push(`【Dialogue lip-sync】"${p.dialogue.trim()}"`);
   }
 
-  // Visual style / cinematography
-  const cinTokens = [
-    p.cinematography.lighting,
-    p.cinematography.color_palette !== "natural tones" ? p.cinematography.color_palette : null,
-    p.cinematography.tone,
-  ].filter(Boolean);
-  if (cinTokens.length) parts.push(cinTokens.join(", ") + ".");
-
-  // Special effects / motion details
+  // 5. Special effects / motion details
   if (p.visual_details.special_effects && p.visual_details.special_effects !== "none") {
     parts.push(p.visual_details.special_effects + ".");
   }
-  if (p.visual_details.hair_clothing_motion && p.visual_details.hair_clothing_motion !== "natural") {
+  if (
+    p.visual_details.hair_clothing_motion &&
+    p.visual_details.hair_clothing_motion !== "natural" &&
+    p.visual_details.hair_clothing_motion !== "natural fabric motion"
+  ) {
     parts.push(p.visual_details.hair_clothing_motion + ".");
   }
 
-  // Audio (Seedance 2.0 native audio generation)
+  // 6. Audio (Seedance 2.0 native audio generation)
   const audioTokens = [
     p.audio.music && p.audio.music !== "background score" ? p.audio.music : null,
     p.audio.ambient && p.audio.ambient !== "natural ambience" ? p.audio.ambient : null,
     p.audio.sound_effects && p.audio.sound_effects !== "none" ? p.audio.sound_effects : null,
   ].filter(Boolean);
   if (audioTokens.length) parts.push("Audio: " + audioTokens.join(", ") + ".");
+
+  // 7. Technical: color palette (only non-default)
+  if (p.cinematography.color_palette && p.cinematography.color_palette !== "natural tones") {
+    parts.push(`Technical: ${p.cinematography.color_palette}.`);
+  }
+
+  // 8. Scene location (brief — image already shows scene)
+  if (p.scene.location && p.scene.location !== "as described in scene") {
+    parts.push(`${p.scene.location}, ${p.scene.time_of_day}.`);
+  }
 
   return parts.join(" ");
 }
