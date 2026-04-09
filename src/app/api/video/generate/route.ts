@@ -25,10 +25,6 @@ export async function POST(request: NextRequest) {
     const model = VIDEO_MODELS[qualityTier];
     const prompt = serializeVideoPrompt(videoPromptJson, duration);
 
-    // Seedance tier mapping: draft=480p, standard/premium=720p with audio
-    const resolution = qualityTier === "draft" ? "480p" : "720p";
-    const generate_audio = model.supportsAudio && qualityTier !== "draft";
-
     // Filter out data: URLs (base64) — fal.ai only accepts http(s) URLs
     // Clamp to 9 (API max for reference-to-video)
     const validRefs = referenceImageUrls
@@ -45,8 +41,8 @@ export async function POST(request: NextRequest) {
       duration,
       maxDuration: model.maxDuration,
       aspect_ratio: aspectRatio ?? "9:16",
-      resolution,
-      generate_audio,
+      resolution: "720p",
+      generate_audio: true,
       end_user_id: projectId,
     });
 

@@ -1,1 +1,1 @@
-fix: storyQuality.suggestions undefined 크래시, 평가 응답 파싱 방어 처리
+Seedance 파라미터 고정: resolution 720p, generate_audio true, duration 4~15s 클램프

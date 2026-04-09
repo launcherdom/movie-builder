@@ -41,8 +41,8 @@ export class FalVideoProvider implements VideoProvider {
   constructor(public readonly endpoint: string) {}
 
   async submitVideo(params: VideoSubmitParams): Promise<VideoSubmitResult> {
-    const clampedDuration = Math.min(Math.round(params.duration), params.maxDuration);
-    // Seedance-family models take duration as a string enum ("4".."15")
+    // Seedance reference-to-video: duration must be 4–15s
+    const clampedDuration = Math.min(Math.max(Math.round(params.duration), 4), params.maxDuration);
     const durationValue = String(clampedDuration);
 
     const { request_id } = await fal.queue.submit(this.endpoint, {

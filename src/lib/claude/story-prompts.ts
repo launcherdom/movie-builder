@@ -244,7 +244,7 @@ Visual style: ${visualStyle}.
 Always use the create_screenplay tool to output your response as structured JSON.
 Keep character descriptions detailed and visual — they will be used as image generation prompts.
 Include age and gender for every character.
-Shot durations must be between 3 and 8 seconds.
+Shot durations must be between 4 and 15 seconds (API minimum is 4s).
 
 Camera direction rules (use exact film terminology — these map directly to Seedance camera movements):
 - Use: "dolly shot", "tracking shot", "orbit shot", "crane shot", "handheld", "slow zoom", "tilt", "static camera", "over-the-shoulder (OTS)", "slow pan"
