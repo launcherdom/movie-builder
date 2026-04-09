@@ -1,1 +1,1 @@
-Phase B/E: end_image_url 샷 전환 look-ahead, Seedance awesome 구조 프롬프트 리라이트, 시스템 프롬프트 카메라 용어 강화
+Phase A: 그리드 이미지 생성 + sharp 분할 → 씬 내 샷 비주얼 일관성 보장

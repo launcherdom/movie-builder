@@ -26,60 +26,56 @@ export function StoryboardStep() {
   const totalPanels = story.scenes.flatMap((sc) => sc.shots).length;
   const donePanels = story.scenes.flatMap((sc) => sc.shots).filter((sh) => sh.imageStatus === "done").length;
 
-  // Generate All: run dependency batches across all scenes
-  // Batch 0 = first shot of each scene (parallel), Batch 1 = second shots (parallel), etc.
+  // Generate All (Grid mode): one composite image per scene → split into panels.
+  // All shots in a scene are generated together → guaranteed visual consistency.
   const handleGenerateAll = async () => {
     setGeneratingAll(true);
     const characters = story.characters;
-    const batches = buildDependencyPlan(story.scenes);
+    const { styleAnalysis } = useProjectStore.getState();
 
-    // Track generated panel URLs per scene for reference chaining
-    const lastPanelPerScene: Record<string, string | undefined> = {};
+    // Process scenes in parallel — each scene is independent
+    await Promise.all(
+      story.scenes.map(async (scene) => {
+        const pendingShots = scene.shots.filter((sh) => sh.imageStatus !== "done");
+        if (pendingShots.length === 0) return;
 
-    for (const batch of batches) {
-      // Mark all shots in this batch as generating
-      batch.forEach(({ shotId }) => setShotImageStatus(shotId, "generating"));
+        // Mark all pending shots in this scene as generating
+        pendingShots.forEach((sh) => setShotImageStatus(sh.id, "generating"));
 
-      // Run all shots in the batch in parallel (different scenes)
-      await Promise.all(
-        batch.map(async ({ shot, scene, shotId }) => {
-          const referenceImageUrl = lastPanelPerScene[scene.id];
-          try {
-            const res = await fetch("/api/storyboard/generate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                shots: [shot],
-                sceneDescription: scene.description,
-                characters,
-                qualityTier,
-                visualStyle,
-                aspectRatio,
-                ...(referenceImageUrl && { referenceImageUrl }),
-              }),
-            });
-            if (!res.ok) { setShotImageStatus(shotId, "error"); return; }
-            const { results } = await res.json() as {
-              results: Array<{ shotId: string; panel: { url: string; width: number; height: number } | null; prompt: string }>
-            };
-            const result = results[0];
-            if (result?.panel) {
-              setShotPanel(result.shotId, result.panel, result.prompt);
-              lastPanelPerScene[scene.id] = result.panel.url;
-              if (projectId) {
-                persistAsset({ url: result.panel.url, projectId, shotId, assetType: "storyboard" })
-                  .then((blobUrl) => { if (blobUrl !== result.panel!.url) setShotPanel(result.shotId, { ...result.panel!, url: blobUrl }, result.prompt); })
-                  .catch(() => {});
-              }
-            } else {
-              setShotImageStatus(shotId, "error");
-            }
-          } catch {
-            setShotImageStatus(shotId, "error");
+        try {
+          const res = await fetch("/api/storyboard/grid-generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              scene: { ...scene, shots: pendingShots },
+              characters,
+              qualityTier,
+              visualStyle,
+              aspectRatio,
+              projectId,
+              styleAnalysis,
+            }),
+          });
+          if (!res.ok) {
+            pendingShots.forEach((sh) => setShotImageStatus(sh.id, "error"));
+            return;
           }
-        })
-      );
-    }
+          const { results } = await res.json() as {
+            results: Array<{ shotId: string; panel: { url: string; width: number; height: number } | null; prompt: string }>
+          };
+          for (const result of results) {
+            if (result.panel) {
+              setShotPanel(result.shotId, result.panel, result.prompt);
+              // Grid results are already uploaded to Vercel Blob — no further persist needed
+            } else {
+              setShotImageStatus(result.shotId, "error");
+            }
+          }
+        } catch {
+          pendingShots.forEach((sh) => setShotImageStatus(sh.id, "error"));
+        }
+      })
+    );
 
     setGeneratingAll(false);
   };
