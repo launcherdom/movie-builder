@@ -9,7 +9,7 @@ interface PanelCardProps {
 }
 
 export function PanelCard({ shot, aspectRatio }: PanelCardProps) {
-  const { setShotPanel, setShotImageStatus, story, qualityTier } = useProjectStore();
+  const { setShotPanel, setShotImageStatus, story } = useProjectStore();
   const [editingPrompt, setEditingPrompt] = useState(false);
   const [prompt, setPrompt] = useState(shot.imagePrompt ?? shot.description);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +23,6 @@ export function PanelCard({ shot, aspectRatio }: PanelCardProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt,
-          qualityTier,
           aspectRatio,
           characters: story?.characters ?? [],
         }),

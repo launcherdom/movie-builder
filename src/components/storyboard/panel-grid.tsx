@@ -11,7 +11,7 @@ interface PanelGridProps {
 }
 
 export function PanelGrid({ scene, sceneIndex, aspectRatio }: PanelGridProps) {
-  const { story, qualityTier, setShotImageStatus, setShotPanel, id: projectId, visualStyle } = useProjectStore();
+  const { story, setShotImageStatus, setShotPanel, id: projectId, visualStyle } = useProjectStore();
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +37,6 @@ export function PanelGrid({ scene, sceneIndex, aspectRatio }: PanelGridProps) {
         body: JSON.stringify({
           scene: { ...scene, shots: pendingShots },
           characters,
-          qualityTier,
           visualStyle,
           aspectRatio,
           projectId,

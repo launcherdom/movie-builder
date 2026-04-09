@@ -25,7 +25,6 @@ export function useSyncProject() {
         targetDuration: state.targetDuration,
         aspectRatio: state.aspectRatio,
         visualStyle: state.visualStyle,
-        qualityTier: state.qualityTier,
         story: state.story,
         currentStep: state.currentStep,
       });

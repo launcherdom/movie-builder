@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import type { QualityTier, VideoPromptJson } from "@/types/movie";
+import type { VideoPromptJson } from "@/types/movie";
 import { getVideoProvider } from "@/lib/providers/registry";
-import { VIDEO_MODELS } from "@/lib/fal/models";
+import { VIDEO_MODEL } from "@/lib/fal/models";
 import { serializeVideoPrompt, serializeSceneVideoPrompt } from "@/lib/generation/prompt-builder";
 
 export async function POST(request: NextRequest) {
@@ -18,19 +18,18 @@ export async function POST(request: NextRequest) {
       totalDuration?: number;
       scene?: { location: string; timeOfDay: string };
       // Common
-      qualityTier: QualityTier;
       aspectRatio?: string;
       projectId?: string;
     };
 
-    const { referenceImageUrls, qualityTier, aspectRatio, projectId } = body;
+    const { referenceImageUrls, aspectRatio, projectId } = body;
 
     if (!referenceImageUrls?.length) {
       return Response.json({ error: "referenceImageUrls are required" }, { status: 400 });
     }
 
-    const provider = getVideoProvider(qualityTier);
-    const model = VIDEO_MODELS[qualityTier];
+    const provider = getVideoProvider();
+    const model = VIDEO_MODEL;
 
     // Filter out data: URLs (base64) — fal.ai only accepts http(s) URLs. Clamp to 9 max.
     const validRefs = referenceImageUrls

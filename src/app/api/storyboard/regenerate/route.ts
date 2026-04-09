@@ -1,13 +1,12 @@
 import { NextRequest } from "next/server";
-import type { QualityTier, Character } from "@/types/movie";
+import type { Character } from "@/types/movie";
 import { getImageProvider } from "@/lib/providers/registry";
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, qualityTier, aspectRatio, characters } =
+    const { prompt, aspectRatio, characters } =
       await request.json() as {
         prompt: string;
-        qualityTier: QualityTier;
         aspectRatio: string;
         characters: Character[];
       };
@@ -16,7 +15,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "prompt is required" }, { status: 400 });
     }
 
-    const provider = getImageProvider(qualityTier);
+    const provider = getImageProvider();
     const referenceImages = characters
       .filter((c) => c.characterSheet?.url)
       .map((c) => c.characterSheet!.url);

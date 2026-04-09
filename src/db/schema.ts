@@ -9,7 +9,6 @@ export const projects = pgTable("projects", {
   targetDuration: integer("target_duration").notNull(),
   aspectRatio: text("aspect_ratio").notNull(),
   visualStyle: text("visual_style").notNull(),
-  qualityTier: text("quality_tier").notNull().default("draft"),
   storyJson: jsonb("story_json").$type<Story>(),
   currentStep: text("current_step").notNull().default("prompt"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

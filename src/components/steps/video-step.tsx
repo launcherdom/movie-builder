@@ -5,7 +5,6 @@ import { useLangStore } from "@/stores/lang-store";
 import { VideoPromptEditor } from "@/components/video/video-prompt-editor";
 import { generationQueue } from "@/lib/generation/queue";
 import type { Shot, Scene, VideoPromptJson, Character, GeneratedVideo } from "@/types/movie";
-import { CostBadge } from "@/components/ui/cost-badge";
 
 // Map common direction words to Seedance-recognized cinematic camera vocabulary
 function toCinematicMovement(raw?: string): string {
@@ -102,7 +101,7 @@ function SceneVideoCard({
   sceneIndex: number;
 }) {
   const store = useProjectStore();
-  const { setSceneVideo, setSceneVideoStatus, qualityTier, aspectRatio, story } = store;
+  const { setSceneVideo, setSceneVideoStatus, aspectRatio, story } = store;
   const { t } = useLangStore();
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -150,7 +149,6 @@ function SceneVideoCard({
           shots,
           totalDuration,
           scene: { location: scene.location, timeOfDay: scene.timeOfDay },
-          qualityTier,
           aspectRatio,
           projectId: useProjectStore.getState().id,
         }),
@@ -274,7 +272,7 @@ function SceneVideoCard({
 }
 
 export function VideoStep() {
-  const { story, setGenerating, qualityTier, aspectRatio, visualStyle, setShotVideoPromptJson } = useProjectStore();
+  const { story, setGenerating, aspectRatio, visualStyle, setShotVideoPromptJson } = useProjectStore();
   const { t } = useLangStore();
   const [generatingPrompts, setGeneratingPrompts] = useState(false);
   const [promptsError, setPromptsError] = useState<string | null>(null);
@@ -526,7 +524,6 @@ export function VideoStep() {
               shots,
               totalDuration,
               scene: { location: freshScene.location, timeOfDay: freshScene.timeOfDay },
-              qualityTier,
               aspectRatio,
               projectId: storeState.id,
             }),
@@ -566,7 +563,6 @@ export function VideoStep() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <CostBadge scope="video" />
           <button
             onClick={handleGeneratePrompts}
             disabled={generatingPrompts}

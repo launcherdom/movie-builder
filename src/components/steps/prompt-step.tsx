@@ -64,7 +64,7 @@ export function PromptStep() {
     setError(null);
     setGenerating(true);
 
-    initProject({ concept, genre, tone, targetDuration: duration, aspectRatio, visualStyle, qualityTier: "draft" });
+    initProject({ concept, genre, tone, targetDuration: duration, aspectRatio, visualStyle });
     const projectId = useProjectStore.getState().id;
 
     try {
@@ -88,7 +88,7 @@ export function PromptStep() {
       await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: projectId, concept, genre, tone, targetDuration: duration, aspectRatio, visualStyle, qualityTier: "draft" }),
+        body: JSON.stringify({ id: projectId, concept, genre, tone, targetDuration: duration, aspectRatio, visualStyle }),
       });
 
       // Consume SSE stream from story generation

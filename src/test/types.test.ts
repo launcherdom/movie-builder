@@ -11,7 +11,6 @@ describe("isValidProject", () => {
       targetDuration: 60,
       aspectRatio: "9:16",
       visualStyle: "realistic",
-      qualityTier: "draft",
       story: null,
       currentStep: "prompt",
       createdAt: "2026-01-01",

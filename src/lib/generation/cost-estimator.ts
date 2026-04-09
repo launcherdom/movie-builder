@@ -1,5 +1,5 @@
-import type { Story, QualityTier } from "@/types/movie";
-import { IMAGE_MODELS, VIDEO_MODELS } from "@/lib/fal/models";
+import type { Story } from "@/types/movie";
+import { IMAGE_MODEL, VIDEO_MODEL } from "@/lib/fal/models";
 
 export interface CostBreakdown {
   characterSheets: { count: number; costEach: number; total: number };
@@ -9,9 +9,9 @@ export interface CostBreakdown {
   grandTotal: number;
 }
 
-export function estimateCost(story: Story, qualityTier: QualityTier): CostBreakdown {
-  const imageModel = IMAGE_MODELS[qualityTier];
-  const videoModel = VIDEO_MODELS[qualityTier];
+export function estimateCost(story: Story): CostBreakdown {
+  const imageModel = IMAGE_MODEL;
+  const videoModel = VIDEO_MODEL;
 
   const characterCount = story.characters.length;
   const allShots = story.scenes.flatMap((sc) => sc.shots);

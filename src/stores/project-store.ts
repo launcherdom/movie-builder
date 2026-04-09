@@ -6,7 +6,6 @@ import type {
   Project,
   ProjectState,
   PipelineStep,
-  QualityTier,
   Story,
   Character,
   Shot,
@@ -50,7 +49,6 @@ interface ProjectActions {
   duplicateShot: (shotId: string) => void;
   saveVersion: (label?: string) => Promise<void>;
   restoreVersion: (versionId: string) => Promise<void>;
-  setQualityTier: (tier: QualityTier) => void;
   setActiveScene: (id: string | null) => void;
   setActiveShot: (id: string | null) => void;
   setGenerating: (generating: boolean, progress?: { current: number; total: number }) => void;
@@ -68,7 +66,6 @@ const initialState: ProjectState = {
   targetDuration: 60,
   aspectRatio: "9:16",
   visualStyle: "realistic",
-  qualityTier: "draft",
   story: null,
   currentStep: "prompt",
   createdAt: "",
@@ -118,7 +115,6 @@ function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectSto
           targetDuration: number;
           aspectRatio: AspectRatio;
           visualStyle: VisualStyle;
-          qualityTier: QualityTier;
           storyJson: Story | null;
           currentStep: PipelineStep;
           createdAt: string;
@@ -133,7 +129,6 @@ function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectSto
         targetDuration: project.targetDuration,
         aspectRatio: project.aspectRatio,
         visualStyle: project.visualStyle,
-        qualityTier: project.qualityTier,
         story: project.storyJson ?? null,
         currentStep: project.currentStep,
         createdAt: typeof project.createdAt === "string"
@@ -158,7 +153,6 @@ function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectSto
           targetDuration: state.targetDuration,
           aspectRatio: state.aspectRatio,
           visualStyle: state.visualStyle,
-          qualityTier: state.qualityTier,
           story: state.story,
           currentStep: state.currentStep,
         }),
@@ -434,7 +428,6 @@ function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectSto
       set({ story });
     },
 
-    setQualityTier: (tier) => set({ qualityTier: tier }),
     setActiveScene: (id) => set({ activeSceneId: id }),
     setActiveShot: (id) => set({ activeShotId: id }),
 

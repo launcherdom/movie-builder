@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/db/index";
 import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import type { Story, PipelineStep, Genre, Tone, AspectRatio, VisualStyle, QualityTier } from "@/types/movie";
+import type { Story, PipelineStep, Genre, Tone, AspectRatio, VisualStyle } from "@/types/movie";
 
 export async function GET(
   _request: NextRequest,
@@ -33,7 +33,6 @@ export async function PUT(
       targetDuration?: number;
       aspectRatio?: AspectRatio;
       visualStyle?: VisualStyle;
-      qualityTier?: QualityTier;
     };
 
     await db
@@ -47,7 +46,6 @@ export async function PUT(
         ...(body.targetDuration !== undefined && { targetDuration: body.targetDuration }),
         ...(body.aspectRatio !== undefined && { aspectRatio: body.aspectRatio }),
         ...(body.visualStyle !== undefined && { visualStyle: body.visualStyle }),
-        ...(body.qualityTier !== undefined && { qualityTier: body.qualityTier }),
         updatedAt: new Date(),
       })
       .where(eq(projects.id, id));

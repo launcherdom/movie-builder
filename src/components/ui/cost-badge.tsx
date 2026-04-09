@@ -8,10 +8,10 @@ interface CostBadgeProps {
 }
 
 export function CostBadge({ scope = "all" }: CostBadgeProps) {
-  const { story, qualityTier } = useProjectStore();
+  const { story } = useProjectStore();
   if (!story) return null;
 
-  const breakdown = estimateCost(story, qualityTier);
+  const breakdown = estimateCost(story);
 
   const cost = scope === "storyboard"
     ? breakdown.storyboardPanels.total

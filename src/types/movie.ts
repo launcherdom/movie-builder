@@ -10,7 +10,6 @@ export interface StoryQualityScores {
 }
 
 // ─── Primitives ─────────────────────────────────────────
-export type QualityTier = "draft" | "standard" | "premium";
 export type AspectRatio = "9:16" | "16:9";
 export type VisualStyle = "realistic" | "anime" | "comic" | "cinematic";
 export type Genre = "drama" | "comedy" | "thriller" | "romance" | "scifi" | "fantasy" | "horror";
@@ -149,7 +148,6 @@ export interface Project {
   targetDuration: number;
   aspectRatio: AspectRatio;
   visualStyle: VisualStyle;
-  qualityTier: QualityTier;
   story: Story | null;
   currentStep: PipelineStep;
   styleReferenceImage?: GeneratedImage; // uploaded style reference
@@ -170,7 +168,7 @@ export type ProjectState = Project & {
 // ─── Validators ─────────────────────────────────────────
 const REQUIRED_PROJECT_KEYS: (keyof Project)[] = [
   "id", "concept", "genre", "tone", "targetDuration",
-  "aspectRatio", "visualStyle", "qualityTier", "story",
+  "aspectRatio", "visualStyle", "story",
   "currentStep", "createdAt", "updatedAt",
 ];
 

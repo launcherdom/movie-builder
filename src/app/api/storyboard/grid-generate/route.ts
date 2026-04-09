@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import type { QualityTier, Character, Shot, Scene, VisualStyle } from "@/types/movie";
+import type { Character, Shot, Scene, VisualStyle } from "@/types/movie";
 import { getImageProvider } from "@/lib/providers/registry";
 import { buildStoryboardPrompt, serializeImagePrompt } from "@/lib/generation/prompt-builder";
 
@@ -7,11 +7,10 @@ import { buildStoryboardPrompt, serializeImagePrompt } from "@/lib/generation/pr
 // for visual consistency (replaces the unreliable grid-split approach).
 export async function POST(request: NextRequest) {
   try {
-    const { scene, characters, qualityTier, visualStyle, aspectRatio, referenceImageUrl, styleAnalysis, previousPanelUrl } =
+    const { scene, characters, visualStyle, aspectRatio, referenceImageUrl, styleAnalysis, previousPanelUrl } =
       await request.json() as {
         scene: Scene;
         characters: Character[];
-        qualityTier: QualityTier;
         visualStyle: VisualStyle;
         aspectRatio: string;
         referenceImageUrl?: string;
@@ -23,7 +22,7 @@ export async function POST(request: NextRequest) {
     const shots: Shot[] = scene.shots;
     if (!shots || shots.length === 0) return Response.json({ results: [] });
 
-    const provider = getImageProvider(qualityTier);
+    const provider = getImageProvider();
 
     // Character sheets of characters appearing in this scene as visual anchors
     const sceneCharacters = characters.filter((c) => scene.characterIds.includes(c.id));

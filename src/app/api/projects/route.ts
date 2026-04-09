@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/db/index";
 import { projects } from "@/db/schema";
 import { nanoid } from "nanoid";
-import type { Genre, Tone, AspectRatio, VisualStyle, QualityTier } from "@/types/movie";
+import type { Genre, Tone, AspectRatio, VisualStyle } from "@/types/movie";
 
 export async function GET() {
   try {
@@ -22,7 +22,6 @@ export async function POST(request: NextRequest) {
       targetDuration: number;
       aspectRatio: AspectRatio;
       visualStyle: VisualStyle;
-      qualityTier?: QualityTier;
     };
 
     const id = (body as { id?: string }).id ?? nanoid();
@@ -34,7 +33,6 @@ export async function POST(request: NextRequest) {
       targetDuration: body.targetDuration,
       aspectRatio: body.aspectRatio,
       visualStyle: body.visualStyle,
-      qualityTier: body.qualityTier ?? "draft",
       currentStep: "prompt",
     });
 

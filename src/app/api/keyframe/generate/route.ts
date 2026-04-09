@@ -1,22 +1,21 @@
 import { NextRequest } from "next/server";
-import type { QualityTier, Character, Shot, VisualStyle } from "@/types/movie";
+import type { Character, Shot, VisualStyle } from "@/types/movie";
 import { getImageProvider } from "@/lib/providers/registry";
 import { buildKeyframePrompt, serializeImagePrompt } from "@/lib/generation/prompt-builder";
 
 export async function POST(request: NextRequest) {
   try {
-    const { shots, sceneDescription, characters, qualityTier, visualStyle, aspectRatio, styleAnalysis } =
+    const { shots, sceneDescription, characters, visualStyle, aspectRatio, styleAnalysis } =
       await request.json() as {
         shots: Shot[];
         sceneDescription: string;
         characters: Character[];
-        qualityTier: QualityTier;
         visualStyle: VisualStyle;
         aspectRatio: string;
         styleAnalysis?: string;
       };
 
-    const provider = getImageProvider(qualityTier);
+    const provider = getImageProvider();
     const scene = { description: sceneDescription };
 
     const results = await Promise.all(

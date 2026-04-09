@@ -13,7 +13,6 @@ describe("project store", () => {
     const s = store.getState();
     expect(s.currentStep).toBe("prompt");
     expect(s.story).toBeNull();
-    expect(s.qualityTier).toBe("draft");
   });
 
   it("setCurrentStep updates step", () => {

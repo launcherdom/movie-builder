@@ -4,23 +4,14 @@ import { buildCharacterSheetPrompt } from "@/lib/fal/prompts";
 import type { Character } from "@/types/movie";
 
 describe("getImageModel", () => {
-  it("returns nano-banana-pro for draft", () => {
-    expect(getImageModel("draft").endpoint).toBe("fal-ai/nano-banana-pro");
-  });
-  it("returns flux-2 for standard", () => {
-    expect(getImageModel("standard").endpoint).toBe("fal-ai/flux-2");
-  });
-  it("returns flux-2-pro for premium", () => {
-    expect(getImageModel("premium").endpoint).toBe("fal-ai/flux-2-pro");
+  it("returns nano-banana-2 endpoint", () => {
+    expect(getImageModel().endpoint).toBe("fal-ai/nano-banana-2");
   });
 });
 
 describe("getVideoModel", () => {
-  it("returns ltx for draft", () => {
-    expect(getVideoModel("draft").endpoint).toContain("ltx");
-  });
-  it("returns kling for standard", () => {
-    expect(getVideoModel("standard").endpoint).toContain("kling");
+  it("returns seedance endpoint", () => {
+    expect(getVideoModel().endpoint).toContain("seedance");
   });
 });
 

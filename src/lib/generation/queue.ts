@@ -20,7 +20,7 @@ interface PoolState {
 
 const CONCURRENCY: Record<TaskType, number> = {
   image: 3,
-  video: 1,
+  video: 3,
 };
 
 class GenerationQueue {

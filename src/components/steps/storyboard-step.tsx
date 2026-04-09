@@ -5,13 +5,9 @@ import { useLangStore } from "@/stores/lang-store";
 import { buildDependencyPlan } from "@/lib/generation/dependency-plan";
 import { persistAsset } from "@/lib/assets/persist";
 import { PanelGrid } from "@/components/storyboard/panel-grid";
-import { CostBadge } from "@/components/ui/cost-badge";
-import type { QualityTier } from "@/types/movie";
-
-const TIERS: QualityTier[] = ["draft", "standard", "premium"];
 
 export function StoryboardStep() {
-  const { story, qualityTier, setQualityTier, setCurrentStep, aspectRatio, id: projectId, setShotImageStatus, setShotPanel, visualStyle } = useProjectStore();
+  const { story, setCurrentStep, aspectRatio, id: projectId, setShotImageStatus, setShotPanel, visualStyle } = useProjectStore();
   const { t } = useLangStore();
   const [generatingAll, setGeneratingAll] = useState(false);
 
@@ -54,7 +50,6 @@ export function StoryboardStep() {
           body: JSON.stringify({
             scene: { ...scene, shots: pendingShots },
             characters,
-            qualityTier,
             visualStyle,
             aspectRatio,
             projectId,
@@ -117,28 +112,6 @@ export function StoryboardStep() {
         </div>
 
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-          {TIERS.map((tier) => (
-            <label key={tier} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-              <input
-                type="radio"
-                name="tier"
-                checked={qualityTier === tier}
-                onChange={() => setQualityTier(tier)}
-                style={{ accentColor: "var(--accent)" }}
-              />
-              <span style={{
-                fontFamily: "var(--font-space-mono), monospace",
-                fontSize: 11,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: qualityTier === tier ? "var(--text-display)" : "var(--text-secondary)",
-              }}>
-                {tier}
-              </span>
-            </label>
-          ))}
-
-          <CostBadge scope="storyboard" />
           <button
             onClick={handleGenerateAll}
             disabled={generatingAll}
