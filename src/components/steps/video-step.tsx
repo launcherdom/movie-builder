@@ -394,21 +394,67 @@ export function VideoStep() {
     setSubtitleError(null);
     setSubtitledUrl(null);
     try {
-      if (!videoUrl.startsWith("http")) {
-        throw new Error("Assembled video must be uploaded first. Wait for upload to complete after assembling.");
+      if (videoUrl.startsWith("http")) {
+        // Production: server-side fluent-ffmpeg (fast, proper libass support)
+        const res = await fetch("/api/video/compose", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            videoUrl,
+            srtContent: srt,
+            projectId: useProjectStore.getState().id,
+          }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const { url } = await res.json();
+        setSubtitledUrl(url);
+      } else {
+        // Local fallback: client-side FFmpeg WASM with drawtext (no libass needed)
+        const srtToDrawtext = (srtText: string): string => {
+          const parseSrtTime = (ts: string): number => {
+            const [hms, ms] = ts.trim().split(",");
+            const [h, m, s] = hms.split(":").map(Number);
+            return h * 3600 + m * 60 + s + Number(ms) / 1000;
+          };
+          const esc = (t: string) =>
+            t.replace(/\\/g, "\\\\").replace(/'/g, "\u2019").replace(/:/g, "\\:").replace(/[[\]]/g, "");
+          return srtText.trim().split(/\n\s*\n/).map((block) => {
+            const lines = block.trim().split("\n");
+            if (lines.length < 3) return null;
+            const times = lines[1].split(" --> ");
+            if (times.length < 2) return null;
+            const start = parseSrtTime(times[0]).toFixed(3);
+            const end = parseSrtTime(times[1]).toFixed(3);
+            const text = esc(lines.slice(2).join(" "));
+            return `drawtext=text='${text}':enable='between(t,${start},${end})':fontsize=24:fontcolor=white:borderw=2:bordercolor=black:x=(w-tw)/2:y=h-th-40`;
+          }).filter(Boolean).join(",");
+        };
+
+        const vf = srtToDrawtext(srt);
+        if (!vf) throw new Error("No subtitle entries found in SRT");
+
+        const { FFmpeg } = await import("@ffmpeg/ffmpeg");
+        const { fetchFile, toBlobURL } = await import("@ffmpeg/util");
+        const ffmpeg = new FFmpeg();
+        const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+        });
+        const logs: string[] = [];
+        ffmpeg.on("log", ({ message }) => logs.push(message));
+        await ffmpeg.writeFile("input.mp4", await fetchFile(videoUrl));
+        const code = await ffmpeg.exec([
+          "-i", "input.mp4",
+          "-vf", vf,
+          "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
+          "-c:a", "aac", "-shortest",
+          "output.mp4",
+        ]);
+        if (code !== 0) throw new Error(`FFmpeg error: ${logs.slice(-3).join(" | ")}`);
+        const data = await ffmpeg.readFile("output.mp4");
+        setSubtitledUrl(URL.createObjectURL(new Blob([new Uint8Array(data as Uint8Array)], { type: "video/mp4" })));
       }
-      const res = await fetch("/api/video/compose", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          videoUrl,
-          srtContent: srt,
-          projectId: useProjectStore.getState().id,
-        }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const { url } = await res.json();
-      setSubtitledUrl(url);
     } catch (e) {
       setSubtitleError(e instanceof Error ? e.message : "Subtitle burn failed");
     } finally {

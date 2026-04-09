@@ -1,1 +1,1 @@
-어셈블 영상 Vercel Blob 업로드 후 서버 FFmpeg로 자막 번 (ai-subtitles 방식)
+자막 번 로컬/프로덕션 분기: blob URL이면 WASM drawtext, HTTP URL이면 서버 FFmpeg
