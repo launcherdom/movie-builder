@@ -1,1 +1,1 @@
-feat: 보드 생성 nano-banana-2/edit 전환, 씬 인물 레이블(Image1=이름) 명시
+fix: 리얼리스틱 스타일 캐릭터 시트를 세미리얼 일러스트로 생성해 Seedance 정책 위반 해소

@@ -19,8 +19,16 @@ export async function POST(request: NextRequest) {
     const style = visualStyle ?? "cinematic";
     const hasPreview = previewImageUrl?.startsWith("http");
 
+    // For realistic/cinematic styles, generate a stylized semi-realistic sheet so it passes
+    // Seedance 2.0 content policy (which blocks photorealistic human faces as references).
+    // Preview stays photorealistic; the sheet is the policy-safe reference used for video.
+    const isSemiRealStyle = style === "realistic" || style === "cinematic";
+    const styleDirective = isSemiRealStyle
+      ? `Stylized semi-realistic illustration style character reference sheet. Clean defined lines, slightly stylized proportions, soft cel-shading effect, subtle painterly quality. NOT photorealistic — clearly an artistic illustration while maintaining recognizable likeness to the reference image.`
+      : `Character reference sheet in the style of: ${style}.`;
+
     const prompt = hasPreview
-      ? `Character reference sheet in the style of: ${style}. Pure white seamless background. Consistent studio lighting throughout.
+      ? `${styleDirective} Pure white seamless background. Consistent studio lighting throughout.
 
 The character is shown in the reference image. Reproduce the character's exact face, hair color, hair style, skin tone, and clothing from the reference image with perfect consistency across all panels.
 
