@@ -3,10 +3,14 @@ import { NextRequest } from "next/server";
 import {
   SCREENPLAY_TOOL,
   EVALUATE_SCREENPLAY_TOOL,
+  CONTINUITY_REVIEW_TOOL,
   buildStorySystemPrompt,
   buildEvaluationPrompt,
+  buildContinuityReviewPrompt,
+  buildContinuityFixPrompt,
   parseStoryResponse,
   parseEvaluationResponse,
+  parseContinuityReview,
 } from "@/lib/claude/story-prompts";
 import type { Genre, Tone, AspectRatio, VisualStyle } from "@/types/movie";
 
@@ -158,7 +162,44 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        controller.enqueue(send({ status: "done", story: evaluatedStory }));
+        // Continuity review — check scene-to-scene flow
+        controller.enqueue(send({ status: "thinking", message: "Checking scene continuity..." }));
+        let finalStory = evaluatedStory;
+        try {
+          const continuityReviewResponse = await client.messages.create({
+            model: "claude-sonnet-4-6",
+            max_tokens: 2048,
+            tools: [CONTINUITY_REVIEW_TOOL],
+            tool_choice: { type: "tool", name: "review_continuity" },
+            messages: [{ role: "user", content: buildContinuityReviewPrompt(evaluatedStory) }],
+          });
+
+          const continuityResult = parseContinuityReview(continuityReviewResponse as Parameters<typeof parseContinuityReview>[0]);
+          if (continuityResult) {
+            console.log(`[story/generate] Continuity score: ${continuityResult.score}, issues: ${continuityResult.issues.length}`);
+            controller.enqueue(send({ status: "thinking", message: `Continuity score: ${continuityResult.score}/100${continuityResult.issues.length > 0 ? ` — ${continuityResult.issues.length} issue(s) found` : ""}` }));
+
+            if (continuityResult.score < 80 && continuityResult.issues.length > 0) {
+              controller.enqueue(send({ status: "thinking", message: "Fixing continuity issues..." }));
+              const { finalMessage: fixedFinal } = await streamScreenplay(
+                {
+                  model: "claude-sonnet-4-6",
+                  max_tokens: 8192,
+                  system: systemPrompt,
+                  tools: [SCREENPLAY_TOOL],
+                  tool_choice: { type: "tool", name: "create_screenplay" },
+                  messages: [{ role: "user", content: buildContinuityFixPrompt(evaluatedStory, continuityResult.issues) }],
+                },
+                (msg) => controller.enqueue(send({ status: "thinking", message: msg }))
+              );
+              finalStory = parseStoryResponse(fixedFinal as Parameters<typeof parseStoryResponse>[0]);
+            }
+          }
+        } catch (contErr) {
+          console.warn("[story/generate] Continuity review failed, skipping:", contErr);
+        }
+
+        controller.enqueue(send({ status: "done", story: finalStory }));
       } catch (error) {
         controller.enqueue(send({
           status: "error",

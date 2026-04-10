@@ -153,6 +153,31 @@ export const VIDEO_PROMPT_TOOL: Anthropic.Tool = {
   },
 };
 
+export const CONTINUITY_REVIEW_TOOL: Anthropic.Tool = {
+  name: "review_continuity",
+  description: "Review scene-to-scene continuity in a screenplay",
+  input_schema: {
+    type: "object" as const,
+    required: ["score", "issues"],
+    properties: {
+      score: { type: "number", description: "Overall continuity score 0-100" },
+      issues: {
+        type: "array",
+        items: {
+          type: "object",
+          required: ["sceneIndex", "type", "description", "fix"],
+          properties: {
+            sceneIndex: { type: "number", description: "0-based index of the scene with the issue" },
+            type: { type: "string", enum: ["physical", "emotional", "location", "narrative", "temporal"] },
+            description: { type: "string", description: "What is wrong between this scene and the previous" },
+            fix: { type: "string", description: "Specific fix to apply to this scene's description or shots" },
+          },
+        },
+      },
+    },
+  },
+};
+
 export const EVALUATE_SCREENPLAY_TOOL: Anthropic.Tool = {
   name: "evaluate_screenplay",
   description: "Evaluate the screenplay quality across 5 cinematic dimensions",
@@ -357,6 +382,74 @@ export function parseStoryResponse(response: ClaudeResponse): Story {
     characters,
     scenes: splitScenes.map((sc, i) => ({ ...sc, orderIndex: i })),
     totalDuration: raw.totalDuration as number,
+  };
+}
+
+export function buildContinuityReviewPrompt(story: Story): string {
+  const sceneList = story.scenes.map((sc, i) => {
+    const lastShot = sc.shots[sc.shots.length - 1];
+    const firstShot = sc.shots[0];
+    return [
+      `Scene ${i + 1}: ${sc.heading} — ${sc.location}, ${sc.timeOfDay}`,
+      `  Description: ${sc.description}`,
+      `  First shot: [${firstShot?.shotType}] ${firstShot?.description}`,
+      `  Last shot:  [${lastShot?.shotType}] ${lastShot?.description}`,
+      lastShot?.dialogue ? `  Exit line: "${lastShot.dialogue}"` : null,
+    ].filter(Boolean).join("\n");
+  }).join("\n\n");
+
+  return `You are a continuity supervisor reviewing a short film screenplay for scene-to-scene flow.
+
+Evaluate how naturally each scene transitions to the next. Check specifically:
+- Physical continuity: Does the character's position/direction make sense going from Scene N's last shot to Scene N+1's first shot?
+- Emotional continuity: Does the character's emotional state carry over logically?
+- Location continuity: Is the spatial progression logical (no unmotivated jumps)?
+- Temporal continuity: Does time flow naturally between scenes?
+- Narrative continuity: Does each scene raise or resolve tension from the previous?
+
+Score 0-100:
+- 90-100: Seamless flow, cinematic quality
+- 70-89: Minor gaps, acceptable
+- 50-69: Noticeable disconnections, should fix
+- 0-49: Major continuity breaks
+
+Screenplay scenes:
+${sceneList}
+
+Use the review_continuity tool. For each issue found, specify the sceneIndex (0-based) and an exact fix.`;
+}
+
+export function buildContinuityFixPrompt(story: Story, issues: Array<{ sceneIndex: number; type: string; description: string; fix: string }>): string {
+  const issueList = issues.map((issue, i) =>
+    `Issue ${i + 1} [Scene ${issue.sceneIndex + 1}, ${issue.type}]: ${issue.description}\nFix: ${issue.fix}`
+  ).join("\n\n");
+
+  const sceneList = story.scenes.map((sc, i) => {
+    return `Scene ${i + 1} (${sc.id}): ${sc.heading}\n  Description: ${sc.description}\n  Shots: ${sc.shots.map((sh) => `[${sh.shotType}] ${sh.description}`).join(" | ")}`;
+  }).join("\n\n");
+
+  return `You are fixing continuity issues in a short film screenplay.
+
+Apply ONLY the fixes listed below. Do not change scenes that are not mentioned. Keep all IDs, character names, locations, and timing identical except where the fix requires changes.
+
+FIXES TO APPLY:
+${issueList}
+
+CURRENT SCENES:
+${sceneList}
+
+Use the create_screenplay tool to output the corrected full screenplay. Preserve everything that is not being fixed.`;
+}
+
+export function parseContinuityReview(response: ClaudeResponse): { score: number; issues: Array<{ sceneIndex: number; type: string; description: string; fix: string }> } | null {
+  const toolBlock = response.content.find(
+    (b) => b.type === "tool_use" && b.name === "review_continuity"
+  );
+  if (!toolBlock || !toolBlock.input) return null;
+  const raw = toolBlock.input as Record<string, unknown>;
+  return {
+    score: Number(raw.score ?? 100),
+    issues: Array.isArray(raw.issues) ? raw.issues as Array<{ sceneIndex: number; type: string; description: string; fix: string }> : [],
   };
 }
 
