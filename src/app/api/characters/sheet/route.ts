@@ -22,14 +22,17 @@ export async function POST(request: NextRequest) {
     const prompt = hasPreview
       ? `Character reference sheet in the style of: ${style}. Pure white seamless background. Consistent studio lighting throughout.
 
-@Image1 is the character. Create a full character reference sheet using @Image1's exact face, hair, and appearance.
+The character is shown in the reference image. Reproduce the character's exact face, hair color, hair style, skin tone, and clothing from the reference image with perfect consistency across all panels.
 
-Left side — three full-body views of @Image1:
+FACE PRIORITY: The character's facial features must be identical to the reference image across every panel — same eye shape, eye color, nose, lips, jawline, skin tone, brow shape, and hair. Facial consistency is non-negotiable.
+
+Left side — three full-body views of the character:
 1. Front: standing naturally, arms at sides, full body head to toe
 2. Side (left profile): same pose, full body
 3. Back: full body showing hair and outfit from behind
+All three figures must be the exact same character with identical features, matching the reference image.
 
-Upper-right — six face/head references of @Image1:
+Upper-right — six face/head references of the same character:
 - Large front-facing portrait (dominant)
 - Slight downward angle
 - Back of head showing hairstyle
@@ -54,7 +57,8 @@ Output: Landscape composition, white background, full layout visible, no croppin
       aspect_ratio: "16:9",
       output_format: "png",
       resolution: "2K",
-      ...(hasPreview && { image_urls: [previewImageUrl!] }),
+      // When preview exists: use i2i /edit endpoint so the model edits from the preview
+      ...(hasPreview && { i2i_image_url: previewImageUrl!, i2i_strength: 0.85 }),
     });
 
     if (!sheetImages.length) {
