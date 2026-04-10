@@ -22,28 +22,40 @@ export async function POST(request: NextRequest) {
 
     const provider = getImageProvider();
 
-    // Character sheets (or preview images as fallback) as visual anchors
+    // Only use characters who physically appear in this scene
     const sceneCharacters = characters.filter((c) => scene.characterIds.includes(c.id));
-    const referenceUrls = (sceneCharacters.length > 0 ? sceneCharacters : characters)
-      .map((c) => c.characterSheet?.url?.startsWith("http")
-        ? c.characterSheet.url
-        : c.previewImage?.url?.startsWith("http")
-          ? c.previewImage.url
-          : null
-      )
-      .filter((url): url is string => url !== null)
-      .slice(0, 4); // nano-banana-2 works best with up to 4 reference images
+    const activeChars = sceneCharacters.length > 0 ? sceneCharacters : [];
 
-    const structured = buildSceneMangaPrompt(scene, sceneCharacters.length > 0 ? sceneCharacters : characters);
+    // Build reference image list with labels (Image1 = Name, ...)
+    const references: { url: string; name: string }[] = activeChars
+      .map((c) => {
+        const url = c.characterSheet?.url?.startsWith("http")
+          ? c.characterSheet.url
+          : c.previewImage?.url?.startsWith("http")
+            ? c.previewImage.url
+            : null;
+        return url ? { url, name: c.name } : null;
+      })
+      .filter((r): r is { url: string; name: string } => r !== null)
+      .slice(0, 4);
+
+    const referenceUrls = references.map((r) => r.url);
+    const referenceLabels = references.map((r, i) => `Image${i + 1} = ${r.name}`);
+
+    const structured = buildSceneMangaPrompt(scene, activeChars, referenceLabels.length > 0 ? referenceLabels : undefined);
     const prompt = serializeImagePrompt(structured);
 
+    // Use /edit endpoint when character references are available (nano-banana-2/edit accepts image_urls)
     const images = await provider.generateImages({
       prompt,
       num_images: 1,
       aspect_ratio: aspectRatio,
       output_format: "png",
       resolution: "1K",
-      ...(referenceUrls.length > 0 && { image_urls: referenceUrls }),
+      ...(referenceUrls.length > 0 && {
+        i2i_image_url: referenceUrls[0],           // triggers /edit endpoint
+        image_urls: referenceUrls,                  // all refs passed as image_urls
+      }),
     });
 
     const image = images[0];
