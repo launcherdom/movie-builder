@@ -89,7 +89,10 @@ export interface Character {
   gender?: string;
   description: string;        // visual appearance (used in prompts)
   personality: string;        // personality for script generation
-  characterSheet?: GeneratedImage; // landscape turnaround sheet from nano-banana-2
+  imagePrompt?: string;        // extra user-written generation instructions for preview
+  previewImage?: GeneratedImage;   // portrait preview before confirmation
+  previewStatus?: GenerationStatus;
+  characterSheet?: GeneratedImage; // landscape turnaround sheet (confirmed)
   faceImage?: GeneratedImage;      // tight portrait close-up for face reference
 }
 

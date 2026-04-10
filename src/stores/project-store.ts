@@ -29,6 +29,7 @@ interface ProjectActions {
   setStory: (story: Story) => void;
   updateCharacter: (id: string, patch: Partial<Character>) => void;
   updateCharacterSheet: (id: string, sheet: GeneratedImage) => void;
+  setCharacterPreview: (id: string, image: GeneratedImage | null, status: GenerationStatus) => void;
   setCharacterFaceImage: (id: string, image: GeneratedImage) => void;
   updateScene: (sceneId: string, patch: Partial<import("@/types/movie").Scene>) => void;
   updateShotField: (shotId: string, patch: Partial<Shot>) => void;
@@ -185,6 +186,19 @@ function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectSto
             ...state.story,
             characters: state.story.characters.map((c) =>
               c.id === id ? { ...c, characterSheet: sheet } : c
+            ),
+          },
+        };
+      }),
+
+    setCharacterPreview: (id, image, status) =>
+      set((state) => {
+        if (!state.story) return {};
+        return {
+          story: {
+            ...state.story,
+            characters: state.story.characters.map((c) =>
+              c.id === id ? { ...c, previewImage: image ?? undefined, previewStatus: status } : c
             ),
           },
         };
