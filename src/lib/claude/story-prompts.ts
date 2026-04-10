@@ -252,6 +252,15 @@ Scene duration rules (CRITICAL):
 - This is a hard limit — Seedance 2.0 generates one video clip per scene, maximum 15s.
 - If a scene would naturally exceed 15 seconds, split it into multiple consecutive scenes at a natural dramatic beat (e.g. "Scene 3A", "Scene 3B").
 
+Scene continuity rules (CRITICAL — scenes must flow as one continuous narrative):
+- Every scene must connect directly to the previous one. The last shot of Scene N sets up the first shot of Scene N+1.
+- Physical continuity: if a character exits left in Scene N, they enter right in Scene N+1. If they reach a door, the next scene shows them entering the next room.
+- Emotional continuity: characters carry their emotional state between scenes — a frightened character in Scene 3 is still tense at the start of Scene 4.
+- Location progression: scenes should move logically through space (hallway → room → exterior, not random jumps).
+- Narrative arc: structure scenes as a single flowing story — setup → escalation → climax → resolution. Each scene must raise or release tension from the previous.
+- The description of each scene should reference what just happened (e.g. "Following the confrontation, Maya now stands alone in...").
+- Avoid disconnected anthology-style scenes. Every scene must feel like the next moment in time.
+
 Camera direction rules (use exact film terminology — these map directly to Seedance camera movements):
 - Use: "dolly shot", "tracking shot", "orbit shot", "crane shot", "handheld", "slow zoom", "tilt", "static camera", "over-the-shoulder (OTS)", "slow pan"
 - Vary camera movements across shots — avoid repeating the same movement more than twice in a row.
