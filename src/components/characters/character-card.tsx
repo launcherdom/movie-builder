@@ -30,9 +30,10 @@ const fieldInput: React.CSSProperties = {
 interface CharacterCardProps {
   character: Character;
   index: number;
+  onRemove: () => void;
 }
 
-export function CharacterCard({ character, index }: CharacterCardProps) {
+export function CharacterCard({ character, index, onRemove }: CharacterCardProps) {
   const { updateCharacter, updateCharacterSheet, setCharacterPreview, id: projectId, visualStyle } = useProjectStore();
   const [generatingSheet, setGeneratingSheet] = useState(false);
   const [generatingPreview, setGeneratingPreview] = useState(false);
@@ -93,7 +94,12 @@ export function CharacterCard({ character, index }: CharacterCardProps) {
       const res = await fetch("/api/characters/sheet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ character, visualStyle }),
+        body: JSON.stringify({
+          character,
+          visualStyle,
+          // Use the confirmed preview as a face reference for the full sheet
+          ...(character.previewImage?.url?.startsWith("http") && { previewImageUrl: character.previewImage.url }),
+        }),
       });
       if (!res.ok) throw new Error(await res.text());
       const { characterSheet } = await res.json() as { characterSheet: { url: string; width: number; height: number } };
@@ -121,6 +127,21 @@ export function CharacterCard({ character, index }: CharacterCardProps) {
           {hasSheet && (
             <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, color: "var(--success)" }}>[SHEET READY]</span>
           )}
+          <button
+            onClick={onRemove}
+            style={{
+              fontFamily: "var(--font-space-mono), monospace",
+              fontSize: 10,
+              background: "transparent",
+              border: "1px solid var(--border-visible)",
+              borderRadius: "var(--radius-btn)",
+              color: "var(--text-disabled)",
+              padding: "4px 10px",
+              cursor: "pointer",
+            }}
+          >
+            ✕ REMOVE
+          </button>
         </div>
       </div>
 

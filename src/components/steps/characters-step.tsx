@@ -6,7 +6,7 @@ import { CharacterCard } from "@/components/characters/character-card";
 import type { Character } from "@/types/movie";
 
 export function CharactersStep() {
-  const { story, setCurrentStep, visualStyle } = useProjectStore();
+  const { story, setCurrentStep, visualStyle, addCharacter, removeCharacter } = useProjectStore();
   const { t } = useLangStore();
   const [generatingAll, setGeneratingAll] = useState(false);
 
@@ -54,29 +54,48 @@ export function CharactersStep() {
             {t.characters.all} — {story.characters.length}
           </p>
         </div>
-        <button
-          onClick={handleGenerateAll}
-          disabled={generatingAll || allSheetsGenerated}
-          style={{
-            fontFamily: "var(--font-space-mono), monospace",
-            fontSize: 11,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            background: "transparent",
-            border: "1px solid var(--border-visible)",
-            borderRadius: "var(--radius-btn)",
-            color: (generatingAll || allSheetsGenerated) ? "var(--text-disabled)" : "var(--text-primary)",
-            padding: "8px 20px",
-            cursor: (generatingAll || allSheetsGenerated) ? "not-allowed" : "pointer",
-          }}
-        >
-          {generatingAll ? t.characters.generating : allSheetsGenerated ? t.characters.allDone : t.characters.generateAll}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={addCharacter}
+            style={{
+              fontFamily: "var(--font-space-mono), monospace",
+              fontSize: 11,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              background: "transparent",
+              border: "1px solid var(--border-visible)",
+              borderRadius: "var(--radius-btn)",
+              color: "var(--text-primary)",
+              padding: "8px 20px",
+              cursor: "pointer",
+            }}
+          >
+            + ADD
+          </button>
+          <button
+            onClick={handleGenerateAll}
+            disabled={generatingAll || allSheetsGenerated}
+            style={{
+              fontFamily: "var(--font-space-mono), monospace",
+              fontSize: 11,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              background: "transparent",
+              border: "1px solid var(--border-visible)",
+              borderRadius: "var(--radius-btn)",
+              color: (generatingAll || allSheetsGenerated) ? "var(--text-disabled)" : "var(--text-primary)",
+              padding: "8px 20px",
+              cursor: (generatingAll || allSheetsGenerated) ? "not-allowed" : "pointer",
+            }}
+          >
+            {generatingAll ? t.characters.generating : allSheetsGenerated ? t.characters.allDone : t.characters.generateAll}
+          </button>
+        </div>
       </div>
 
       <div style={{ borderTop: "1px solid var(--border-visible)", paddingTop: 24 }}>
         {story.characters.map((char: Character, i) => (
-          <CharacterCard key={char.id} character={char} index={i} />
+          <CharacterCard key={char.id} character={char} index={i} onRemove={() => removeCharacter(char.id)} />
         ))}
       </div>
 

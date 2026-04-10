@@ -5,7 +5,11 @@ import type { Character } from "@/types/movie";
 
 export async function POST(request: NextRequest) {
   try {
-    const { character, visualStyle } = await request.json() as { character: Character; visualStyle?: string };
+    const { character, visualStyle, previewImageUrl } = await request.json() as {
+      character: Character;
+      visualStyle?: string;
+      previewImageUrl?: string;
+    };
 
     if (!character?.description) {
       return Response.json({ error: "character.description is required" }, { status: 400 });
@@ -20,6 +24,8 @@ export async function POST(request: NextRequest) {
       aspect_ratio: "16:9",
       output_format: "png",
       resolution: "2K",
+      // Use preview image as face reference for consistency
+      ...(previewImageUrl?.startsWith("http") && { image_urls: [previewImageUrl] }),
     });
 
     if (!sheetImages.length) {

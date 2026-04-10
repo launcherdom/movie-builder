@@ -27,6 +27,8 @@ interface ProjectActions {
   loadProject: (id: string) => Promise<void>;
   saveProject: () => Promise<void>;
   setStory: (story: Story) => void;
+  addCharacter: () => void;
+  removeCharacter: (id: string) => void;
   updateCharacter: (id: string, patch: Partial<Character>) => void;
   updateCharacterSheet: (id: string, sheet: GeneratedImage) => void;
   setCharacterPreview: (id: string, image: GeneratedImage | null, status: GenerationStatus) => void;
@@ -166,6 +168,24 @@ function buildActions(set: (partial: Partial<ProjectStore> | ((state: ProjectSto
     },
 
     setStory: (story) => set({ story, currentStep: "story" }),
+
+    addCharacter: () =>
+      set((state) => {
+        if (!state.story) return {};
+        const newChar: Character = {
+          id: nanoid(),
+          name: "New Character",
+          description: "",
+          personality: "",
+        };
+        return { story: { ...state.story, characters: [...state.story.characters, newChar] } };
+      }),
+
+    removeCharacter: (id) =>
+      set((state) => {
+        if (!state.story) return {};
+        return { story: { ...state.story, characters: state.story.characters.filter((c) => c.id !== id) } };
+      }),
 
     updateCharacter: (id, patch) =>
       set((state) => {
