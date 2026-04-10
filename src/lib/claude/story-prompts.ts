@@ -340,12 +340,11 @@ Scene characterIds rules (CRITICAL):
 - If a scene has no named characters, set characterIds to an empty array [].
 
 Dialogue rules:
-- At least 40% of shots should have dialogue — this is a talking film, not a silent movie.
-- Every scene with 2+ characters must have at least one exchange of dialogue.
+- At least 40% of shots should have dialogue — prioritize spoken moments.
+- Every scene with 2+ characters should have at least one line of dialogue unless the scene is intentionally silent (e.g. action, chase, reaction).
 - Dialogue should feel natural and character-specific — each character has a distinct voice.
 - Lines can be 1–20 words. Longer lines are fine for emotional or dramatic moments.
-- Include speakerId matching the character's id for every line.
-- Avoid scenes where characters are only described acting silently — give them words.`;
+- Include speakerId matching the character's id for every line.`;
 }
 
 type ClaudeResponse = { content: Array<{ type: string; name?: string; input?: unknown; text?: string }> };
