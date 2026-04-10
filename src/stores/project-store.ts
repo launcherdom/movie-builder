@@ -18,6 +18,7 @@ import type {
   AspectRatio,
   VisualStyle,
   StoryQualityScores,
+  SeriesConfig,
 } from "@/types/movie";
 
 interface ProjectActions {
@@ -71,6 +72,7 @@ const initialState: ProjectState = {
   visualStyle: "realistic",
   story: null,
   currentStep: "prompt",
+  series: undefined,
   createdAt: "",
   updatedAt: "",
   activeSceneId: null,

@@ -12,7 +12,7 @@ import {
   parseEvaluationResponse,
   parseContinuityReview,
 } from "@/lib/claude/story-prompts";
-import type { Genre, Tone, AspectRatio, VisualStyle } from "@/types/movie";
+import type { Genre, Tone, AspectRatio, VisualStyle, SeriesConfig } from "@/types/movie";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -66,7 +66,7 @@ async function streamScreenplay(
 }
 
 export async function POST(request: NextRequest) {
-  const { concept, genre, tone, targetDuration, aspectRatio, visualStyle } =
+  const { concept, genre, tone, targetDuration, aspectRatio, visualStyle, series } =
     await request.json() as {
       concept: string;
       genre: Genre;
@@ -74,13 +74,14 @@ export async function POST(request: NextRequest) {
       targetDuration: number;
       aspectRatio: AspectRatio;
       visualStyle: VisualStyle;
+      series?: SeriesConfig;
     };
 
   if (!concept) {
     return Response.json({ error: "concept is required" }, { status: 400 });
   }
 
-  const systemPrompt = buildStorySystemPrompt(genre, tone, targetDuration, aspectRatio, visualStyle);
+  const systemPrompt = buildStorySystemPrompt(genre, tone, targetDuration, aspectRatio, visualStyle, series);
 
   const encoder = new TextEncoder();
   const send = (obj: object) => encoder.encode(`data: ${JSON.stringify(obj)}\n\n`);

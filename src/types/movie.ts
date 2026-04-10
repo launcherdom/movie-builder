@@ -142,6 +142,13 @@ export interface Story {
   totalDuration: number;
 }
 
+// ─── Series ─────────────────────────────────────────────
+export interface SeriesConfig {
+  enabled: boolean;
+  episodeNumber: number;   // 1-based current episode
+  totalEpisodes: number;   // total planned episodes
+}
+
 // ─── Project ────────────────────────────────────────────
 export interface Project {
   id: string;
@@ -153,6 +160,7 @@ export interface Project {
   visualStyle: VisualStyle;
   story: Story | null;
   currentStep: PipelineStep;
+  series?: SeriesConfig;            // optional series mode
   styleReferenceImage?: GeneratedImage; // uploaded style reference
   styleAnalysis?: string;               // Claude Vision style description
   createdAt: string;

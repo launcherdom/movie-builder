@@ -3,7 +3,7 @@ import { useState, useRef } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { useLangStore } from "@/stores/lang-store";
 import { useRouter } from "next/navigation";
-import type { Genre, Tone, AspectRatio, VisualStyle } from "@/types/movie";
+import type { Genre, Tone, AspectRatio, VisualStyle, SeriesConfig } from "@/types/movie";
 
 const GENRES: Genre[] = ["drama", "comedy", "thriller", "romance", "scifi", "fantasy", "horror"];
 const TONES: Tone[] = ["serious", "light", "dark", "whimsical"];
@@ -43,6 +43,9 @@ export function PromptStep() {
   const [duration, setDuration] = useState(60);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("9:16");
   const [visualStyle, setVisualStyle] = useState<VisualStyle>("realistic");
+  const [seriesEnabled, setSeriesEnabled] = useState(false);
+  const [episodeNumber, setEpisodeNumber] = useState(1);
+  const [totalEpisodes, setTotalEpisodes] = useState(3);
   const [generating, setGenerating] = useState(false);
   const [generatingMessage, setGeneratingMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +67,10 @@ export function PromptStep() {
     setError(null);
     setGenerating(true);
 
-    initProject({ concept, genre, tone, targetDuration: duration, aspectRatio, visualStyle });
+    const series: SeriesConfig | undefined = seriesEnabled
+      ? { enabled: true, episodeNumber, totalEpisodes }
+      : undefined;
+    initProject({ concept, genre, tone, targetDuration: duration, aspectRatio, visualStyle, series });
     const projectId = useProjectStore.getState().id;
 
     try {
@@ -88,14 +94,14 @@ export function PromptStep() {
       await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: projectId, concept, genre, tone, targetDuration: duration, aspectRatio, visualStyle }),
+        body: JSON.stringify({ id: projectId, concept, genre, tone, targetDuration: duration, aspectRatio, visualStyle, series }),
       });
 
       // Consume SSE stream from story generation
       const res = await fetch("/api/story/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ concept, genre, tone, targetDuration: duration, aspectRatio, visualStyle }),
+        body: JSON.stringify({ concept, genre, tone, targetDuration: duration, aspectRatio, visualStyle, series }),
       });
       if (!res.ok) throw new Error(await res.text());
 
@@ -231,6 +237,58 @@ export function PromptStep() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Series mode */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: seriesEnabled ? 16 : 0 }}>
+          <label style={{ ...labelStyle, marginBottom: 0, cursor: "pointer", userSelect: "none" }}>
+            <input
+              type="checkbox"
+              checked={seriesEnabled}
+              onChange={(e) => setSeriesEnabled(e.target.checked)}
+              style={{ accentColor: "var(--accent)", marginRight: 8 }}
+            />
+            SERIES MODE
+          </label>
+          {seriesEnabled && (
+            <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, color: "var(--text-disabled)" }}>
+              — MULTI-EPISODE STORY
+            </span>
+          )}
+        </div>
+
+        {seriesEnabled && (
+          <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "12px 16px", border: "1px solid var(--border-visible)", borderRadius: 4, background: "var(--surface)" }}>
+            <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-secondary)" }}>EPISODE</span>
+            <select
+              value={episodeNumber}
+              onChange={(e) => setEpisodeNumber(Number(e.target.value))}
+              style={{ ...underlineInput, width: "auto", fontFamily: "var(--font-space-mono), monospace", fontSize: 13, padding: "4px 0" }}
+            >
+              {Array.from({ length: totalEpisodes }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+            <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 11, color: "var(--text-disabled)" }}>OF</span>
+            <select
+              value={totalEpisodes}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setTotalEpisodes(val);
+                if (episodeNumber > val) setEpisodeNumber(val);
+              }}
+              style={{ ...underlineInput, width: "auto", fontFamily: "var(--font-space-mono), monospace", fontSize: 13, padding: "4px 0" }}
+            >
+              {[2, 3, 4, 5, 6, 8, 10].map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+            <span style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 10, color: "var(--text-disabled)", marginLeft: 4 }}>
+              {episodeNumber === 1 ? "→ SETS UP SERIES" : episodeNumber === totalEpisodes ? "→ FINAL EPISODE" : `→ CONTINUES FROM EP.${episodeNumber - 1}`}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Style reference upload */}

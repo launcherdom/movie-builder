@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Story, Genre, Tone, AspectRatio, VisualStyle, VideoPromptJson } from "@/types/movie";
+import type { Story, Genre, Tone, AspectRatio, VisualStyle, VideoPromptJson, SeriesConfig } from "@/types/movie";
 import { nanoid } from "nanoid";
 
 export const SCREENPLAY_TOOL: Anthropic.Tool = {
@@ -253,15 +253,53 @@ export function parseEvaluationResponse(response: ClaudeResponse): import("@/typ
   };
 }
 
+function buildSeriesBlock(series: SeriesConfig): string {
+  const { episodeNumber, totalEpisodes } = series;
+  const isFirst = episodeNumber === 1;
+  const isLast = episodeNumber === totalEpisodes;
+
+  const positionGuide = isFirst
+    ? `This is the FIRST episode of a ${totalEpisodes}-episode series.
+- Establish the world, main characters, and central conflict clearly.
+- Plant seeds for future episodes (introduce a mystery, relationship tension, or unresolved goal).
+- End with a strong hook or cliffhanger that makes the viewer want to watch Episode 2.
+- Do NOT resolve the main conflict — this is just the beginning.`
+    : isLast
+    ? `This is the FINAL episode (${episodeNumber} of ${totalEpisodes}) of the series.
+- Reference that previous episodes have built up to this moment (write descriptions as if continuing from prior events).
+- Bring all major plot threads to a satisfying resolution.
+- Give characters meaningful closure.
+- The ending should feel earned and complete — no cliffhangers.`
+    : `This is Episode ${episodeNumber} of ${totalEpisodes} in a series.
+- Reference that previous events have already happened (the opening scene should feel like a continuation).
+- Continue escalating the central conflict established in Episode 1.
+- End with a hook or partial revelation that bridges to Episode ${episodeNumber + 1}.
+- Do NOT introduce or resolve the main conflict — deepen it.`;
+
+  return `
+Series mode (CRITICAL):
+This is Episode ${episodeNumber} of ${totalEpisodes}.
+${positionGuide}
+The title should include the episode number (e.g. "— Ep.${episodeNumber}").
+The logline should reflect only what happens in this episode.
+Characters and their visual descriptions must remain consistent across all episodes.`;
+}
+
 export function buildStorySystemPrompt(
   genre: Genre,
   tone: Tone,
   targetDuration: number,
   aspectRatio: AspectRatio,
-  visualStyle: VisualStyle
+  visualStyle: VisualStyle,
+  series?: SeriesConfig
 ): string {
   const shotCount = Math.round(targetDuration / 4);
   const sceneCount = Math.max(2, Math.round(shotCount / 4));
+
+  const seriesBlock = series?.enabled
+    ? buildSeriesBlock(series)
+    : "";
+
   return `You are a professional screenplay writer specializing in short-form drama.
 Write a ${genre} short film with a ${tone} tone.
 Target duration: ${targetDuration} seconds (~${sceneCount} scenes, ~${shotCount} shots, 3-6 seconds each).
@@ -271,6 +309,7 @@ Always use the create_screenplay tool to output your response as structured JSON
 Keep character descriptions detailed and visual — they will be used as image generation prompts.
 Include age and gender for every character.
 Shot durations must be between 4 and 15 seconds (API minimum is 4s).
+${seriesBlock}
 
 Scene duration rules (CRITICAL):
 - Each scene's total duration (sum of all shot durations) must be 15 seconds or less.
