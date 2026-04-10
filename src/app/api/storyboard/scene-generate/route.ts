@@ -22,11 +22,17 @@ export async function POST(request: NextRequest) {
 
     const provider = getImageProvider();
 
-    // Character sheets as visual anchors
+    // Character sheets (or preview images as fallback) as visual anchors
     const sceneCharacters = characters.filter((c) => scene.characterIds.includes(c.id));
-    const characterSheetUrls = sceneCharacters
-      .filter((c) => c.characterSheet?.url?.startsWith("http"))
-      .map((c) => c.characterSheet!.url);
+    const referenceUrls = (sceneCharacters.length > 0 ? sceneCharacters : characters)
+      .map((c) => c.characterSheet?.url?.startsWith("http")
+        ? c.characterSheet.url
+        : c.previewImage?.url?.startsWith("http")
+          ? c.previewImage.url
+          : null
+      )
+      .filter((url): url is string => url !== null)
+      .slice(0, 4); // nano-banana-2 works best with up to 4 reference images
 
     const structured = buildSceneMangaPrompt(scene, sceneCharacters.length > 0 ? sceneCharacters : characters);
     const prompt = serializeImagePrompt(structured);
@@ -37,7 +43,7 @@ export async function POST(request: NextRequest) {
       aspect_ratio: aspectRatio,
       output_format: "png",
       resolution: "1K",
-      ...(characterSheetUrls.length > 0 && { image_urls: characterSheetUrls }),
+      ...(referenceUrls.length > 0 && { image_urls: referenceUrls }),
     });
 
     const image = images[0];

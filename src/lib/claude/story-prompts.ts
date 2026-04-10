@@ -306,7 +306,7 @@ Target duration: ${targetDuration} seconds (~${sceneCount} scenes, ~${shotCount}
 Aspect ratio: ${aspectRatio} (${aspectRatio === "9:16" ? "vertical/mobile" : "cinematic widescreen"}).
 Visual style: ${visualStyle}.
 Always use the create_screenplay tool to output your response as structured JSON.
-Keep character descriptions detailed and visual — they will be used as image generation prompts.
+Keep character descriptions concise — name and one or two key visual anchors only (hair color, clothing). Do NOT write long appearance paragraphs in shots.
 Include age and gender for every character.
 Shot durations must be between 4 and 15 seconds (API minimum is 4s).
 ${seriesBlock}
@@ -329,10 +329,16 @@ Camera direction rules (use exact film terminology — these map directly to See
 - Use: "dolly shot", "tracking shot", "orbit shot", "crane shot", "handheld", "slow zoom", "tilt", "static camera", "over-the-shoulder (OTS)", "slow pan"
 - Vary camera movements across shots — avoid repeating the same movement more than twice in a row.
 
-Character description rules (critical for visual consistency across shots):
-- Include 3-5 fixed visual anchors: specific clothing colors/style, hair color/style, and 1-2 distinguishing features.
-- Example: "Young woman, mid-20s, long black hair in a bun, wearing a red silk qipao with gold trim, sharp cheekbones."
-- These anchors must be identical every time the character appears.
+Shot description rules (CRITICAL):
+- Each shot description must focus on: what is HAPPENING (action, emotion, conflict) + camera framing (shot type, angle, movement).
+- Do NOT describe character appearance in shots — no hair color, clothing details, physical features. The character sheet handles that.
+- Good: "Maya slams the door and leans against it, breathing hard. Low-angle MCU, handheld."
+- Bad: "Maya, a young woman with long black hair wearing a red dress, stands by the door."
+
+Character description rules (for the characters section only):
+- Include 2-3 fixed visual anchors: hair color/style, one distinctive clothing item.
+- Example: "Young woman, mid-20s, long black hair, red qipao."
+- Keep it short — these are just identity anchors, not full appearance descriptions.
 
 Scene characterIds rules (CRITICAL):
 - characterIds must list ONLY the characters who physically appear in that scene.

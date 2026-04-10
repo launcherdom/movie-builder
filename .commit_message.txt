@@ -1,1 +1,1 @@
-fix: nano-banana-2/edit API 스키마에 맞게 i2i 파라미터 수정 (image_urls 배열, strength 제거)
+feat: 보드 생성 시 캐릭터시트 레퍼런스 추가, 스토리 샷 묘사 상황+구도 중심으로 개선
