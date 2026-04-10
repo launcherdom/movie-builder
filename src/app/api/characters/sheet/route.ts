@@ -58,7 +58,7 @@ Output: Landscape composition, white background, full layout visible, no croppin
       output_format: "png",
       resolution: "2K",
       // When preview exists: use i2i /edit endpoint so the model edits from the preview
-      ...(hasPreview && { i2i_image_url: previewImageUrl!, i2i_strength: 0.85 }),
+      ...(hasPreview && { i2i_image_url: previewImageUrl! }),
     });
 
     if (!sheetImages.length) {

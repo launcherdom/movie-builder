@@ -1,1 +1,1 @@
-fix: /edit 엔드포인트에서 미지원 파라미터(aspect_ratio, resolution) 제거
+fix: nano-banana-2/edit API 스키마에 맞게 i2i 파라미터 수정 (image_urls 배열, strength 제거)

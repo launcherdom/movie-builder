@@ -22,11 +22,12 @@ export class FalImageProvider implements ImageProvider {
       const editEndpoint = `${this.falEndpoint}/edit`;
       result = await fal.subscribe(editEndpoint, {
         input: {
-          image_url: params.i2i_image_url,
           prompt: params.prompt,
-          strength: params.i2i_strength ?? 0.75,
+          image_urls: [params.i2i_image_url, ...(params.image_urls ?? [])],
           num_images: params.num_images ?? 1,
           output_format: params.output_format ?? "png",
+          ...(params.aspect_ratio ? { aspect_ratio: params.aspect_ratio } : {}),
+          ...(params.resolution ? { resolution: params.resolution } : {}),
         },
       });
     } else {
