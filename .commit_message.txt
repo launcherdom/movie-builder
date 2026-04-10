@@ -1,1 +1,1 @@
-fix: 캐릭터 시트 생성 시 프리뷰 이미지를 i2i /edit 엔드포인트로 정확히 전달
+fix: /edit 엔드포인트에서 미지원 파라미터(aspect_ratio, resolution) 제거
